@@ -11,26 +11,78 @@ namespace MCLauncher {
     using System.IO;
     using System.IO.Compression;
     using System.Threading;
+    using Windows.Management.Deployment;
+    using Windows.System;
     using WPFDataTypes;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window {
+    public partial class MainWindow : Window, ICommonVersionCommands {
+
+        private static readonly string MINECRAFT_PACKAGE_FAMILY = "Microsoft.MinecraftUWP_8wekyb3d8bbwe";
 
         private List<Version> _versions;
 
         public MainWindow() {
             InitializeComponent();
             _versions = new List<Version>();
-            RelayCommand downloadCommand = new RelayCommand(InvokeDownload);
-            _versions.Add(new Version("f5c96a67-9beb-4291-8d56-3a872f363f68", "1.9.0.15", false, downloadCommand));
-            _versions.Add(new Version("a0813887-d274-4742-9bc4-6dcca29abfeb", "1.10.0.5", true, downloadCommand));
+            _versions.Add(new Version("f5c96a67-9beb-4291-8d56-3a872f363f68", "1.9.0.15", false, this));
+            _versions.Add(new Version("a0813887-d274-4742-9bc4-6dcca29abfeb", "1.10.0.5", true, this));
             VersionList.ItemsSource = _versions;
         }
 
-        private void InvokeDownload(object param) {
-            Version v = (Version)param;
+        public ICommand LaunchCommand => new RelayCommand((v) => InvokeLaunch((Version) v));
+
+        public ICommand DownloadCommand => new RelayCommand((v) => InvokeDownload((Version)v));
+
+        private void InvokeLaunch(Version v) {
+            Task.Run(async () => {
+                string gameDir = Path.GetFullPath(v.GameDirectory);
+                try {
+                    await ReRegisterPackage(gameDir);
+                } catch (Exception e) {
+                    Debug.WriteLine("App re-register failed:\n" + e.ToString());
+                    MessageBox.Show("App re-register failed:\n" + e.ToString());
+                    return;
+                }
+
+                try {
+                    var pkg = await AppDiagnosticInfo.RequestInfoForPackageAsync(MINECRAFT_PACKAGE_FAMILY);
+                    if (pkg.Count > 0)
+                        await pkg[0].LaunchAsync();
+                } catch (Exception e) {
+                    Debug.WriteLine("App launch failed:\n" + e.ToString());
+                    MessageBox.Show("App launch failed:\n" + e.ToString());
+                    return;
+                }
+            });
+        }
+
+        private async Task ReRegisterPackage(string gameDir) {
+            PackageManager packageManager = new PackageManager();
+            foreach (var pkg in packageManager.FindPackages(MINECRAFT_PACKAGE_FAMILY)) {
+                if (pkg.InstalledLocation.Path == gameDir) {
+                    Debug.WriteLine("Skipping package removal - same path: " + pkg.Id.FullName + " " + pkg.InstalledLocation.Path);
+                    return;
+                }
+                Debug.WriteLine("Removing package: " + pkg.Id.FullName + " " + pkg.InstalledLocation.Path);
+                if (!pkg.IsDevelopmentMode) {
+                    if (MessageBox.Show("A non-Development Mode version is installed on this system. It will need to be removed in a way which does not preserve the data (including your saved worlds). Are you sure you want to continue?", "Warning", MessageBoxButton.YesNoCancel) != MessageBoxResult.Yes)
+                        return;
+                    await packageManager.RemovePackageAsync(pkg.Id.FullName, 0);
+                } else {
+                    await packageManager.RemovePackageAsync(pkg.Id.FullName, RemovalOptions.PreserveApplicationData);
+                }
+                Debug.WriteLine("Removal of package done: " + pkg.Id.FullName);
+            }
+            Debug.WriteLine("Registering package");
+            string manifestPath = Path.Combine(gameDir, "AppxManifest.xml");
+            await packageManager.RegisterPackageAsync(new Uri(manifestPath), null, DeploymentOptions.DevelopmentMode);
+            Debug.WriteLine("App re-register done!");
+        }
+
+        private void InvokeDownload(Version v) {
             CancellationTokenSource cancelSource = new CancellationTokenSource();
             v.DownloadInfo = new VersionDownloadInfo();
             v.DownloadInfo.IsInitializing = true;
@@ -72,7 +124,6 @@ namespace MCLauncher {
                     return;
                 }
             });
-
         }
     }
 
@@ -89,17 +140,26 @@ namespace MCLauncher {
 
         }
 
+        public interface ICommonVersionCommands {
+
+            ICommand LaunchCommand { get; }
+
+            ICommand DownloadCommand { get; }
+
+        }
+
         public class Versions : List<Object> {
         }
 
         public class Version : NotifyPropertyChangedBase {
 
             public Version() { }
-            public Version(string uuid, string name, bool isBeta, ICommand downloadCommand) {
+            public Version(string uuid, string name, bool isBeta, ICommonVersionCommands commands) {
                 this.UUID = uuid;
                 this.Name = name;
                 this.IsBeta = isBeta;
-                this.DownloadCommand = downloadCommand;
+                this.DownloadCommand = commands.DownloadCommand;
+                this.LaunchCommand = commands.LaunchCommand;
             }
 
             public string UUID { get; set; }
@@ -121,6 +181,7 @@ namespace MCLauncher {
                 }
             }
 
+            public ICommand LaunchCommand { get; set; }
             public ICommand DownloadCommand { get; set; }
 
             private VersionDownloadInfo _downloadInfo;

@@ -7,7 +7,7 @@
         mc:Ignorable="d"
         Title="Minecraft Version Manager" Height="450" Width="800">
     <Window.Resources>
-        <DataTemplate x:Key="templateVersionSimpleAction" DataType="{x:Type local:Version}">
+        <DataTemplate x:Key="templateVersionNotInstalled" DataType="{x:Type local:Version}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -20,6 +20,21 @@
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding DisplayName}" FontWeight="Bold" />
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding DisplayInstallStatus}" />
                 <Button x:Name="DownloadButton" Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Padding="20,0" Content="Download" Command="{Binding DownloadCommand}" CommandParameter="{Binding}" />
+            </Grid>
+        </DataTemplate>
+        <DataTemplate x:Key="templateVersionInstalled" DataType="{x:Type local:Version}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition />
+                    <RowDefinition />
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding DisplayName}" FontWeight="Bold" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding DisplayInstallStatus}" />
+                <Button x:Name="DownloadButton" Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Padding="20,0" Content="Launch" Command="{Binding LaunchCommand}" CommandParameter="{Binding}" />
             </Grid>
         </DataTemplate>
         <DataTemplate x:Key="templateVersionDownloading" DataType="{x:Type local:Version}">
@@ -46,9 +61,12 @@
         <ListBox Name="VersionList" Margin="10,10,10,10"  d:DataContext="{d:DesignData /SampleData/Versions.xaml}" ItemsSource="{Binding}" HorizontalContentAlignment="Stretch">
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <ContentControl x:Name="control" Content="{Binding}" ContentTemplate="{StaticResource templateVersionSimpleAction}"/>
+                    <ContentControl x:Name="control" Content="{Binding}" ContentTemplate="{StaticResource templateVersionNotInstalled}"/>
 
                     <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsInstalled}" Value="True">
+                            <Setter TargetName="control" Property="ContentTemplate" Value="{StaticResource templateVersionInstalled}"/>
+                        </DataTrigger>
                         <DataTrigger Binding="{Binding IsDownloading}" Value="True">
                             <Setter TargetName="control" Property="ContentTemplate" Value="{StaticResource templateVersionDownloading}"/>
                         </DataTrigger>
