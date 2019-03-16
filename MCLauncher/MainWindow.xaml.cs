@@ -117,12 +117,15 @@ namespace MCLauncher {
                         Directory.Delete(dirPath, true);
                     ZipFile.ExtractToDirectory(dlPath, dirPath);
                     v.DownloadInfo = null;
+                    File.Delete(Path.Combine(dirPath, "AppxSignature.p7x"));
                 } catch (Exception e) {
                     Debug.WriteLine("Extraction failed:\n" + e.ToString());
                     MessageBox.Show("Extraction failed:\n" + e.ToString());
                     v.DownloadInfo = null;
                     return;
                 }
+                v.DownloadInfo = null;
+                v.UpdateInstallStatus();
             });
         }
     }
@@ -191,6 +194,10 @@ namespace MCLauncher {
             }
 
             public bool IsDownloading => DownloadInfo != null;
+
+            public void UpdateInstallStatus() {
+                OnPropertyChanged("IsInstalled");
+            }
 
         }
 
