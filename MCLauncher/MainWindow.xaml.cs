@@ -8,6 +8,8 @@ using System.Windows.Input;
 namespace MCLauncher {
     using System.ComponentModel;
     using System.Diagnostics;
+    using System.IO;
+    using System.IO.Compression;
     using System.Threading;
     using WPFDataTypes;
 
@@ -37,8 +39,9 @@ namespace MCLauncher {
             VersionDownloader downloader = new VersionDownloader();
             Debug.WriteLine("Download start");
             Task.Run(async () => {
+                string dlPath = "Minecraft-" + v.Name + ".Appx";
                 try {
-                    await downloader.Download(v.UUID, "1", (current, total) => {
+                    await downloader.Download(v.UUID, "1", dlPath, (current, total) => {
                         if (v.DownloadInfo.IsInitializing) {
                             Debug.WriteLine("Actual download started");
                             v.DownloadInfo.IsInitializing = false;
@@ -48,12 +51,25 @@ namespace MCLauncher {
                         v.DownloadInfo.DownloadedBytes = current;
                     }, cancelSource.Token);
                     Debug.WriteLine("Download complete");
-                    v.DownloadInfo = null;
                 } catch (Exception e) {
                     Debug.WriteLine("Download failed:\n" + e.ToString());
                     if (!(e is TaskCanceledException))
                         MessageBox.Show("Download failed:\n" + e.ToString());
                     v.DownloadInfo = null;
+                    return;
+                }
+                try {
+                    v.DownloadInfo.IsExtracting = true;
+                    string dirPath = v.GameDirectory;
+                    if (Directory.Exists(dirPath))
+                        Directory.Delete(dirPath, true);
+                    ZipFile.ExtractToDirectory(dlPath, dirPath);
+                    v.DownloadInfo = null;
+                } catch (Exception e) {
+                    Debug.WriteLine("Extraction failed:\n" + e.ToString());
+                    MessageBox.Show("Extraction failed:\n" + e.ToString());
+                    v.DownloadInfo = null;
+                    return;
                 }
             });
 
@@ -90,6 +106,10 @@ namespace MCLauncher {
             public string Name { get; set; }
             public bool IsBeta { get; set; }
 
+            public string GameDirectory => "Minecraft-" + Name;
+
+            public bool IsInstalled => Directory.Exists(GameDirectory);
+
             public string DisplayName {
                 get {
                     return Name + (IsBeta ? " (beta)" : "");
@@ -97,7 +117,7 @@ namespace MCLauncher {
             }
             public string DisplayInstallStatus {
                 get {
-                    return "Not installed";
+                    return IsInstalled ? "Installed" : "Not installed";
                 }
             }
 
@@ -116,12 +136,22 @@ namespace MCLauncher {
         public class VersionDownloadInfo : NotifyPropertyChangedBase {
 
             private bool _isInitializing;
+            private bool _isExtracting;
             private long _downloadedBytes;
             private long _totalSize;
 
             public bool IsInitializing {
                 get { return _isInitializing; }
-                set { _isInitializing = value; OnPropertyChanged("IsInitializing"); OnPropertyChanged("DisplayStatus"); }
+                set { _isInitializing = value; OnPropertyChanged("IsProgressIndeterminate"); OnPropertyChanged("DisplayStatus"); }
+            }
+
+            public bool IsExtracting {
+                get { return _isExtracting; }
+                set { _isExtracting = value; OnPropertyChanged("IsProgressIndeterminate"); OnPropertyChanged("DisplayStatus"); }
+            }
+
+            public bool IsProgressIndeterminate {
+                get { return IsInitializing || IsExtracting; }
             }
 
             public long DownloadedBytes {
@@ -138,6 +168,8 @@ namespace MCLauncher {
                 get {
                     if (IsInitializing)
                         return "Downloading...";
+                    if (IsExtracting)
+                        return "Extracting...";
                     return "Downloading... " + (DownloadedBytes / 1024 / 1024) + "MiB/" + (TotalSize / 1024 / 1024) + "MiB";
                 }
             }

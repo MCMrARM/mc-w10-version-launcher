@@ -57,12 +57,12 @@ namespace MCLauncher {
             return null;
         }
 
-        public async Task Download(string updateIdentity, string revisionNumber, DownloadProgress progress, CancellationToken cancellationToken) {
+        public async Task Download(string updateIdentity, string revisionNumber, string destination, DownloadProgress progress, CancellationToken cancellationToken) {
             string link = await GetDownloadUrl(updateIdentity, revisionNumber);
             if (link == null)
                 throw new ArgumentException("Bad updateIdentity");
             Debug.WriteLine("Resolved download link: " + link);
-            await DownloadFile(link, updateIdentity + ".Appx", progress, cancellationToken);
+            await DownloadFile(link, destination, progress, cancellationToken);
         }
 
         public delegate void DownloadProgress(long current, long? total);
