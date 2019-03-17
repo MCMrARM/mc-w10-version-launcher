@@ -22,7 +22,7 @@ namespace MCLauncher {
 
         private static readonly string MINECRAFT_PACKAGE_FAMILY = "Microsoft.MinecraftUWP_8wekyb3d8bbwe";
 
-        private List<Version> _versions;
+        private VersionList _versions;
         private readonly VersionDownloader _anonVersionDownloader = new VersionDownloader();
         private readonly VersionDownloader _userVersionDownloader = new VersionDownloader();
         private readonly Task _userVersionDownloaderLoginTask;
@@ -30,12 +30,17 @@ namespace MCLauncher {
 
         public MainWindow() {
             InitializeComponent();
-            _versions = new List<Version>();
-            _versions.Add(new Version("f5c96a67-9beb-4291-8d56-3a872f363f68", "1.9.0.15", false, this));
-            _versions.Add(new Version("a0813887-d274-4742-9bc4-6dcca29abfeb", "1.10.0.5", true, this));
+            _versions = new VersionList(this);
             VersionList.ItemsSource = _versions;
             _userVersionDownloaderLoginTask = new Task(() => {
                 _userVersionDownloader.EnableUserAuthorization();
+            });
+            Dispatcher.Invoke(async () => {
+                try {
+                    await _versions.DownloadList();
+                } catch (Exception e) {
+                    Debug.WriteLine("List download failed:\n" + e.ToString());
+                }
             });
         }
 
