@@ -73,16 +73,12 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateWindowsMetadata>false</GenerateWindowsMetadata>
-      <ModuleDefinitionFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">TokenBrokerInternal.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
     <ClCompile>
       <PreprocessorDefinitions>WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <Link>
-      <ModuleDefinitionFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">TokenBrokerInternal.def</ModuleDefinitionFile>
-    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
     <ClCompile>
@@ -96,8 +92,6 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateWindowsMetadata>false</GenerateWindowsMetadata>
-      <ModuleDefinitionFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">TokenBrokerInternal.def</ModuleDefinitionFile>
-      <ModuleDefinitionFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">TokenBrokerInternal.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -115,7 +109,9 @@
     </Text>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Midl Include="TokenBrokerInternal.idl" />
