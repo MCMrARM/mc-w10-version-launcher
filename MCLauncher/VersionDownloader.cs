@@ -29,10 +29,11 @@ namespace MCLauncher {
         }
 
         private async Task DownloadFile(string url, string to, DownloadProgress progress, CancellationToken cancellationToken) {
-            using (var resp = await client.GetAsync(url, cancellationToken)) {
+            using (var resp = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)) {
                 using (var inStream = await resp.Content.ReadAsStreamAsync())
                 using (var outStream = new FileStream(to, FileMode.Create)) {
                     long? totalSize = resp.Content.Headers.ContentLength;
+                    progress(0, totalSize);
                     long transferred = 0;
                     byte[] buf = new byte[1024 * 1024];
                     while (true) {
