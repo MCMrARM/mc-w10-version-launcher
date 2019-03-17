@@ -22,6 +22,7 @@ namespace MCLauncher {
         }
 
         private void ParseList(JArray data) {
+            Clear();
             // ([name, uuid, isBeta])[]
             foreach (JArray o in data.AsEnumerable().Reverse()) {
                 Add(new WPFDataTypes.Version(o[1].Value<string>(), o[0].Value<string>(), o[2].Value<int>() == 1, _commands));
