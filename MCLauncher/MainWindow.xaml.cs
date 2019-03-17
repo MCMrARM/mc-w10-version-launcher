@@ -11,6 +11,7 @@ namespace MCLauncher {
     using System.IO;
     using System.IO.Compression;
     using System.Threading;
+    using Windows.Foundation;
     using Windows.Management.Deployment;
     using Windows.System;
     using WPFDataTypes;
@@ -63,6 +64,7 @@ namespace MCLauncher {
                     var pkg = await AppDiagnosticInfo.RequestInfoForPackageAsync(MINECRAFT_PACKAGE_FAMILY);
                     if (pkg.Count > 0)
                         await pkg[0].LaunchAsync();
+                    Debug.WriteLine("App launch finished!");
                 } catch (Exception e) {
                     Debug.WriteLine("App launch failed:\n" + e.ToString());
                     MessageBox.Show("App launch failed:\n" + e.ToString());
@@ -71,9 +73,20 @@ namespace MCLauncher {
             });
         }
 
+        private async Task DeploymentProgressWrapper(IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> t) {
+            TaskCompletionSource<int> src = new TaskCompletionSource<int>();
+            t.Progress += (v, p) => {
+                Debug.WriteLine("Deployment progress: " + p.state + " " + p.percentage + "%");
+            };
+            t.Completed += (v, p) => {
+                Debug.WriteLine("Deployment done: " + p);
+                src.SetResult(1);
+            };
+            await src.Task;
+        }
+
         private async Task ReRegisterPackage(string gameDir) {
-            PackageManager packageManager = new PackageManager();
-            foreach (var pkg in packageManager.FindPackages(MINECRAFT_PACKAGE_FAMILY)) {
+            foreach (var pkg in new PackageManager().FindPackages(MINECRAFT_PACKAGE_FAMILY)) {
                 if (pkg.InstalledLocation.Path == gameDir) {
                     Debug.WriteLine("Skipping package removal - same path: " + pkg.Id.FullName + " " + pkg.InstalledLocation.Path);
                     return;
@@ -82,15 +95,17 @@ namespace MCLauncher {
                 if (!pkg.IsDevelopmentMode) {
                     if (MessageBox.Show("A non-Development Mode version is installed on this system. It will need to be removed in a way which does not preserve the data (including your saved worlds). Are you sure you want to continue?", "Warning", MessageBoxButton.YesNoCancel) != MessageBoxResult.Yes)
                         return;
-                    await packageManager.RemovePackageAsync(pkg.Id.FullName, 0);
+                    await DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, 0));
                 } else {
-                    await packageManager.RemovePackageAsync(pkg.Id.FullName, RemovalOptions.PreserveApplicationData);
+                    Debug.WriteLine("Package is in development mode");
+                    await DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, RemovalOptions.PreserveApplicationData));
                 }
                 Debug.WriteLine("Removal of package done: " + pkg.Id.FullName);
+                break;
             }
             Debug.WriteLine("Registering package");
             string manifestPath = Path.Combine(gameDir, "AppxManifest.xml");
-            await packageManager.RegisterPackageAsync(new Uri(manifestPath), null, DeploymentOptions.DevelopmentMode);
+            await DeploymentProgressWrapper(new PackageManager().RegisterPackageAsync(new Uri(manifestPath), null, DeploymentOptions.DevelopmentMode));
             Debug.WriteLine("App re-register done!");
         }
 
