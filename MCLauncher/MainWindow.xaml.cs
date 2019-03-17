@@ -32,12 +32,17 @@ namespace MCLauncher {
 
         public MainWindow() {
             InitializeComponent();
-            _versions = new VersionList(this);
+            _versions = new VersionList("versions.json", this);
             VersionList.ItemsSource = _versions;
             _userVersionDownloaderLoginTask = new Task(() => {
                 _userVersionDownloader.EnableUserAuthorization();
             });
             Dispatcher.Invoke(async () => {
+                try {
+                    await _versions.LoadFromCache();
+                } catch (Exception e) {
+                    Debug.WriteLine("List cache load failed:\n" + e.ToString());
+                }
                 try {
                     await _versions.DownloadList();
                 } catch (Exception e) {
