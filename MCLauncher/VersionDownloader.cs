@@ -57,6 +57,10 @@ namespace MCLauncher {
             return null;
         }
 
+        public void EnableUserAuthorization() {
+            protocol.SetMSAUserToken(WUTokenHelper.GetWUToken());
+        }
+
         public async Task Download(string updateIdentity, string revisionNumber, string destination, DownloadProgress progress, CancellationToken cancellationToken) {
             string link = await GetDownloadUrl(updateIdentity, revisionNumber);
             if (link == null)
@@ -66,6 +70,8 @@ namespace MCLauncher {
         }
 
         public delegate void DownloadProgress(long current, long? total);
+
+
 
     }
 }

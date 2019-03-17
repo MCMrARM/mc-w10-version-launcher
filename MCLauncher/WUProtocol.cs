@@ -16,11 +16,24 @@ namespace MCLauncher {
         private static XNamespace wuws = "http://schemas.microsoft.com/msus/2014/10/WindowsUpdateAuthorization";
         private static XNamespace wuclient = "http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService";
 
+        private string _msaUserToken;
+
+        public void SetMSAUserToken(string token) {
+            _msaUserToken = token;
+        }
+
         private XElement BuildWUTickets() {
             XElement tickets = new XElement(wuws + "WindowsUpdateTicketsToken",
                         new XAttribute(secutil + "id", "ClientMSA"),
                         new XAttribute(XNamespace.Xmlns + "wsu", secutil),
                         new XAttribute(XNamespace.Xmlns + "wuws", wuws));
+            if (_msaUserToken != null) {
+                tickets.Add(new XElement("TicketType",
+                    new XAttribute("Name", "MSA"),
+                    new XAttribute("Version", "1.0"),
+                    new XAttribute("Policy", "MBI_SSL"),
+                    new XElement("User", _msaUserToken)));
+            }
             tickets.Add(new XElement("TicketType", "",
                 new XAttribute("Name", "AAD"),
                 new XAttribute("Version", "1.0"),

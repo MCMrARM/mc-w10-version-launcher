@@ -23,6 +23,10 @@ namespace MCLauncher {
         private static readonly string MINECRAFT_PACKAGE_FAMILY = "Microsoft.MinecraftUWP_8wekyb3d8bbwe";
 
         private List<Version> _versions;
+        private readonly VersionDownloader _anonVersionDownloader = new VersionDownloader();
+        private readonly VersionDownloader _userVersionDownloader = new VersionDownloader();
+        private readonly Task _userVersionDownloaderLoginTask;
+        private int _userVersionDownloaderLoginTaskStarted;
 
         public MainWindow() {
             InitializeComponent();
@@ -30,6 +34,9 @@ namespace MCLauncher {
             _versions.Add(new Version("f5c96a67-9beb-4291-8d56-3a872f363f68", "1.9.0.15", false, this));
             _versions.Add(new Version("a0813887-d274-4742-9bc4-6dcca29abfeb", "1.10.0.5", true, this));
             VersionList.ItemsSource = _versions;
+            _userVersionDownloaderLoginTask = new Task(() => {
+                _userVersionDownloader.EnableUserAuthorization();
+            });
         }
 
         public ICommand LaunchCommand => new RelayCommand((v) => InvokeLaunch((Version) v));
@@ -88,10 +95,17 @@ namespace MCLauncher {
             v.DownloadInfo.IsInitializing = true;
             v.DownloadInfo.CancelCommand = new RelayCommand((o) => cancelSource.Cancel());
 
-            VersionDownloader downloader = new VersionDownloader();
             Debug.WriteLine("Download start");
             Task.Run(async () => {
                 string dlPath = "Minecraft-" + v.Name + ".Appx";
+                VersionDownloader downloader = _anonVersionDownloader;
+                if (v.IsBeta) {
+                    downloader = _userVersionDownloader;
+                    if (Interlocked.CompareExchange(ref _userVersionDownloaderLoginTaskStarted, 1, 0) == 0) {
+                        _userVersionDownloaderLoginTask.Start();
+                    }
+                    await _userVersionDownloaderLoginTask;
+                }
                 try {
                     await downloader.Download(v.UUID, "1", dlPath, (current, total) => {
                         if (v.DownloadInfo.IsInitializing) {
