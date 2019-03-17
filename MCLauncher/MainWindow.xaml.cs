@@ -27,7 +27,8 @@ namespace MCLauncher {
         private readonly VersionDownloader _anonVersionDownloader = new VersionDownloader();
         private readonly VersionDownloader _userVersionDownloader = new VersionDownloader();
         private readonly Task _userVersionDownloaderLoginTask;
-        private int _userVersionDownloaderLoginTaskStarted;
+        private volatile int _userVersionDownloaderLoginTaskStarted;
+        private volatile bool _hasLaunchTask = false;
 
         public MainWindow() {
             InitializeComponent();
@@ -50,6 +51,9 @@ namespace MCLauncher {
         public ICommand DownloadCommand => new RelayCommand((v) => InvokeDownload((Version)v));
 
         private void InvokeLaunch(Version v) {
+            if (_hasLaunchTask)
+                return;
+            _hasLaunchTask = true;
             Task.Run(async () => {
                 string gameDir = Path.GetFullPath(v.GameDirectory);
                 try {
@@ -57,6 +61,7 @@ namespace MCLauncher {
                 } catch (Exception e) {
                     Debug.WriteLine("App re-register failed:\n" + e.ToString());
                     MessageBox.Show("App re-register failed:\n" + e.ToString());
+                    _hasLaunchTask = false;
                     return;
                 }
 
@@ -65,9 +70,11 @@ namespace MCLauncher {
                     if (pkg.Count > 0)
                         await pkg[0].LaunchAsync();
                     Debug.WriteLine("App launch finished!");
+                    _hasLaunchTask = false;
                 } catch (Exception e) {
                     Debug.WriteLine("App launch failed:\n" + e.ToString());
                     MessageBox.Show("App launch failed:\n" + e.ToString());
+                    _hasLaunchTask = false;
                     return;
                 }
             });
