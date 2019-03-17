@@ -51,7 +51,9 @@ namespace MCLauncher {
             });
         }
 
-        public ICommand LaunchCommand => new RelayCommand((v) => InvokeLaunch((Version) v));
+        public ICommand LaunchCommand => new RelayCommand((v) => InvokeLaunch((Version)v));
+
+        public ICommand RemoveCommand => new RelayCommand((v) => InvokeRemove((Version)v));
 
         public ICommand DownloadCommand => new RelayCommand((v) => InvokeDownload((Version)v));
 
@@ -174,6 +176,11 @@ namespace MCLauncher {
                 v.UpdateInstallStatus();
             });
         }
+
+        private void InvokeRemove(Version v) {
+            Directory.Delete(v.GameDirectory, true);
+            v.UpdateInstallStatus();
+        }
     }
 
     namespace WPFDataTypes {
@@ -195,6 +202,8 @@ namespace MCLauncher {
 
             ICommand DownloadCommand { get; }
 
+            ICommand RemoveCommand { get; }
+
         }
 
         public class Versions : List<Object> {
@@ -209,6 +218,7 @@ namespace MCLauncher {
                 this.IsBeta = isBeta;
                 this.DownloadCommand = commands.DownloadCommand;
                 this.LaunchCommand = commands.LaunchCommand;
+                this.RemoveCommand = commands.RemoveCommand;
             }
 
             public string UUID { get; set; }
@@ -232,6 +242,7 @@ namespace MCLauncher {
 
             public ICommand LaunchCommand { get; set; }
             public ICommand DownloadCommand { get; set; }
+            public ICommand RemoveCommand { get; set; }
 
             private VersionDownloadInfo _downloadInfo;
             public VersionDownloadInfo DownloadInfo {
