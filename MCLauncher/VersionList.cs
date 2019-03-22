@@ -40,7 +40,7 @@ namespace MCLauncher {
         }
 
         public async Task DownloadList() {
-            var resp = await _client.GetAsync("https://mrarm.io/u/versions-mcw10.json");
+            var resp = await _client.GetAsync("https://mrarm.io/r/w10-vdb");
             resp.EnsureSuccessStatusCode();
             var data = await resp.Content.ReadAsStringAsync();
             File.WriteAllText(_cacheFile, data);
