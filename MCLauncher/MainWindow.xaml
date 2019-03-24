@@ -82,6 +82,6 @@
                 Margin="10,4,0,0"
                 VerticalAlignment="Top"
                 Width="763"
-                Click="Button_Click" Height="37"/>
+                Click="ImportButtonClicked" Height="37"/>
     </Grid>
 </Window>

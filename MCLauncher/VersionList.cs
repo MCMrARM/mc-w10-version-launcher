@@ -15,6 +15,7 @@ namespace MCLauncher {
         private readonly string _cacheFile;
         private readonly WPFDataTypes.ICommonVersionCommands _commands;
         private readonly HttpClient _client = new HttpClient();
+        HashSet<string> dbVersions = new HashSet<string>();
 
         public VersionList(string cacheFile, WPFDataTypes.ICommonVersionCommands commands) {
             _cacheFile = cacheFile;
@@ -25,14 +26,13 @@ namespace MCLauncher {
             Clear();
             // ([name, uuid, isBeta])[]
             foreach (JArray o in data.AsEnumerable().Reverse()) {
+                dbVersions.Add(o[0].Value<string>());
                 Add(new WPFDataTypes.Version(o[1].Value<string>(), o[0].Value<string>(), o[2].Value<int>() == 1, _commands));
             }
             string[] subdirectoryEntries = Directory.GetDirectories(".");
-            foreach (string subdirectory in subdirectoryEntries)
-            {
-                if (subdirectory.Contains("(imported)"))
-                {
-                    AddEntry(subdirectory.Replace(" (imported)", "").Remove(0,2));
+            foreach (string subdirectory in subdirectoryEntries) {
+                if (!dbVersions.Contains(subdirectory)) {
+                    AddEntry(subdirectory.Remove(0,2));
                 }
             }
         }
@@ -55,9 +55,8 @@ namespace MCLauncher {
             ParseList(JArray.Parse(data));
         }
 
-        public void AddEntry(string name)
-        {
-            Add(new WPFDataTypes.Version("Unknown", name.Replace(".appx", ""), false, _commands, (name + " (imported)")));
+        public void AddEntry(string name) {
+            Add(new WPFDataTypes.Version("Unknown", name.Replace(".appx", ""), false, name, _commands));
         }
 
     }

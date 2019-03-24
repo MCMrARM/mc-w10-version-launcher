@@ -53,16 +53,18 @@ namespace MCLauncher {
             });
         }
 
-        private async void Button_Click(object sender, RoutedEventArgs e)
-        {
+        private async void ImportButtonClicked(object sender, RoutedEventArgs e) {
             Microsoft.Win32.OpenFileDialog openFileDlg = new Microsoft.Win32.OpenFileDialog();
             Nullable<bool> result = openFileDlg.ShowDialog();
-            if (result == true)
-            {
-                string directory = openFileDlg.SafeFileName + " (imported)";
-                if (Directory.Exists(directory))
-                {
-                    Directory.Delete(directory, true);
+            if (result == true) {
+                string directory = openFileDlg.SafeFileName;
+                    if (Directory.Exists(directory)) {
+                    MessageBoxResult messageBoxResult = System.Windows.MessageBox.Show("A version with the same name was already imported. Do you want to delete it ?", "Delete Confirmation", System.Windows.MessageBoxButton.YesNo);
+                    if (messageBoxResult == MessageBoxResult.Yes) {
+                        Directory.Delete(directory, true);
+                    } else {
+                        return;
+                    }
                 }
                 await Task.Run(() => ZipFile.ExtractToDirectory(openFileDlg.FileName, directory));
                 _versions.AddEntry(openFileDlg.SafeFileName);
@@ -245,20 +247,15 @@ namespace MCLauncher {
             });
         }
 
-        private async void InvokeRemove(Version v) {
-            await Task.Run(() => Directory.Delete(v.GameDirectory, true));
-            if(v.UUID == "Unknown")
-            {
-                await Dispatcher.Invoke(async () => {
-                    try
-                    {
-                        await _versions.LoadFromCache();
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.WriteLine("List cache load failed:\n" + e.ToString());
-                    }
-                });
+        private void InvokeRemove(Version v) {
+            Directory.Delete(v.GameDirectory, true);
+            if(v.UUID == "Unknown") {
+                try{
+                    _versions.LoadFromCache();
+                }
+                catch (Exception e) {
+                    Debug.WriteLine("List cache load failed:\n" + e.ToString());
+                }
             }
             v.UpdateInstallStatus();
         }
@@ -293,21 +290,23 @@ namespace MCLauncher {
         public class Version : NotifyPropertyChangedBase {
 
             public Version() { }
-            public Version(string uuid, string name, bool isBeta, ICommonVersionCommands commands, string directory = "") {
+            public Version(string uuid, string name, bool isBeta, ICommonVersionCommands commands) {
                 this.UUID = uuid;
                 this.Name = name;
                 this.IsBeta = isBeta;
                 this.DownloadCommand = commands.DownloadCommand;
                 this.LaunchCommand = commands.LaunchCommand;
                 this.RemoveCommand = commands.RemoveCommand;
-                if(directory == "")
-                {
-                    this.GameDirectory = "Minecraft-" + Name;
-                }
-                else
-                {
-                    this.GameDirectory = directory;
-                }
+                this.GameDirectory = "Minecraft-" + Name;
+            }
+            public Version(string uuid, string name, bool isBeta, string directory, ICommonVersionCommands commands) {
+                this.UUID = uuid;
+                this.Name = name;
+                this.IsBeta = isBeta;
+                this.DownloadCommand = commands.DownloadCommand;
+                this.LaunchCommand = commands.LaunchCommand;
+                this.RemoveCommand = commands.RemoveCommand;
+                this.GameDirectory = directory;
             }
 
             public string UUID { get; set; }
