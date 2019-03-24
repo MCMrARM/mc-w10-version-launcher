@@ -60,7 +60,7 @@
         </DataTemplate>
     </Window.Resources>
     <Grid>
-        <ListBox Name="VersionList" Margin="10,10,10,10"  d:DataContext="{d:DesignData /SampleData/Versions.xaml}" ItemsSource="{Binding}" HorizontalContentAlignment="Stretch">
+        <ListBox Name="VersionList" Margin="10,41,10,10"  d:DataContext="{d:DesignData /SampleData/Versions.xaml}" ItemsSource="{Binding}" HorizontalContentAlignment="Stretch">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <ContentControl x:Name="control" Content="{Binding}" ContentTemplate="{StaticResource templateVersionNotInstalled}"/>
@@ -77,6 +77,11 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-
+        <Button Content="Import"
+                HorizontalAlignment="Left"
+                Margin="10,4,0,0"
+                VerticalAlignment="Top"
+                Width="763"
+                Click="Button_Click" Height="37"/>
     </Grid>
 </Window>

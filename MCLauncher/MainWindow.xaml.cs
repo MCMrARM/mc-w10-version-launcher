@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Microsoft.Win32;
 
 namespace MCLauncher {
     using System.ComponentModel;
@@ -50,6 +51,22 @@ namespace MCLauncher {
                     Debug.WriteLine("List download failed:\n" + e.ToString());
                 }
             });
+        }
+
+        private async void Button_Click(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog openFileDlg = new Microsoft.Win32.OpenFileDialog();
+            Nullable<bool> result = openFileDlg.ShowDialog();
+            if (result == true)
+            {
+                string directory = openFileDlg.SafeFileName + " (imported)";
+                if (Directory.Exists(directory))
+                {
+                    Directory.Delete(directory, true);
+                }
+                await Task.Run(() => ZipFile.ExtractToDirectory(openFileDlg.FileName, directory));
+                _versions.AddEntry(openFileDlg.SafeFileName);
+            }
         }
 
         public ICommand LaunchCommand => new RelayCommand((v) => InvokeLaunch((Version)v));
@@ -228,8 +245,21 @@ namespace MCLauncher {
             });
         }
 
-        private void InvokeRemove(Version v) {
-            Directory.Delete(v.GameDirectory, true);
+        private async void InvokeRemove(Version v) {
+            await Task.Run(() => Directory.Delete(v.GameDirectory, true));
+            if(v.UUID == "Unknown")
+            {
+                await Dispatcher.Invoke(async () => {
+                    try
+                    {
+                        await _versions.LoadFromCache();
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.WriteLine("List cache load failed:\n" + e.ToString());
+                    }
+                });
+            }
             v.UpdateInstallStatus();
         }
     }
@@ -263,20 +293,28 @@ namespace MCLauncher {
         public class Version : NotifyPropertyChangedBase {
 
             public Version() { }
-            public Version(string uuid, string name, bool isBeta, ICommonVersionCommands commands) {
+            public Version(string uuid, string name, bool isBeta, ICommonVersionCommands commands, string directory = "") {
                 this.UUID = uuid;
                 this.Name = name;
                 this.IsBeta = isBeta;
                 this.DownloadCommand = commands.DownloadCommand;
                 this.LaunchCommand = commands.LaunchCommand;
                 this.RemoveCommand = commands.RemoveCommand;
+                if(directory == "")
+                {
+                    this.GameDirectory = "Minecraft-" + Name;
+                }
+                else
+                {
+                    this.GameDirectory = directory;
+                }
             }
 
             public string UUID { get; set; }
             public string Name { get; set; }
             public bool IsBeta { get; set; }
 
-            public string GameDirectory => "Minecraft-" + Name;
+            public string GameDirectory { get; set; }
 
             public bool IsInstalled => Directory.Exists(GameDirectory);
 

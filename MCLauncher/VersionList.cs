@@ -27,6 +27,14 @@ namespace MCLauncher {
             foreach (JArray o in data.AsEnumerable().Reverse()) {
                 Add(new WPFDataTypes.Version(o[1].Value<string>(), o[0].Value<string>(), o[2].Value<int>() == 1, _commands));
             }
+            string[] subdirectoryEntries = Directory.GetDirectories(".");
+            foreach (string subdirectory in subdirectoryEntries)
+            {
+                if (subdirectory.Contains("(imported)"))
+                {
+                    AddEntry(subdirectory.Replace(" (imported)", "").Remove(0,2));
+                }
+            }
         }
 
         public async Task LoadFromCache() {
@@ -45,6 +53,11 @@ namespace MCLauncher {
             var data = await resp.Content.ReadAsStringAsync();
             File.WriteAllText(_cacheFile, data);
             ParseList(JArray.Parse(data));
+        }
+
+        public void AddEntry(string name)
+        {
+            Add(new WPFDataTypes.Version("Unknown", name.Replace(".appx", ""), false, _commands, (name + " (imported)")));
         }
 
     }
