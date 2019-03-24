@@ -229,8 +229,43 @@ namespace MCLauncher {
         }
 
         private void InvokeRemove(Version v) {
-            Directory.Delete(v.GameDirectory, true);
-            v.UpdateInstallStatus();
+            if (!v.GetStatusBeingRemoved()) {
+                foreach (Process Proc in Process.GetProcesses()) {
+                    if (Proc.ProcessName.Contains("Minecraft")) {
+                        Debug.WriteLine("Killing Minecraft process");
+                        Proc.Kill();
+                    }
+                }
+                Thread.Sleep(1000);
+
+                v.UpdateBeingRemoveStatus(true);
+                foreach (var pkg in new PackageManager().FindPackages(MINECRAFT_PACKAGE_FAMILY)) {
+                    if (pkg.InstalledLocation.Path.Contains(v.GameDirectory)) {
+                        DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, RemovalOptions.PreserveApplicationData));
+                        Debug.WriteLine("Removal of package done: " + pkg.Id.FullName);
+                        break;
+                    }
+                }
+                DeleteDirectory(v.GameDirectory);
+                v.UpdateInstallStatus();
+                v.UpdateBeingRemoveStatus(false);
+            }
+        }
+
+        public static void DeleteDirectory(string target_dir) {
+            string[] files = Directory.GetFiles(target_dir);
+            string[] dirs = Directory.GetDirectories(target_dir);
+
+            foreach (string file in files) {
+                File.SetAttributes(file, FileAttributes.Normal);
+                File.Delete(file);
+            }
+
+            foreach (string dir in dirs) {
+                DeleteDirectory(dir);
+            }
+
+            Directory.Delete(target_dir, false);
         }
     }
 
@@ -270,11 +305,13 @@ namespace MCLauncher {
                 this.DownloadCommand = commands.DownloadCommand;
                 this.LaunchCommand = commands.LaunchCommand;
                 this.RemoveCommand = commands.RemoveCommand;
+                this.IsBeingRemoved = false;
             }
 
             public string UUID { get; set; }
             public string Name { get; set; }
             public bool IsBeta { get; set; }
+            public bool IsBeingRemoved { get; set; }
 
             public string GameDirectory => "Minecraft-" + Name;
 
@@ -305,6 +342,16 @@ namespace MCLauncher {
 
             public void UpdateInstallStatus() {
                 OnPropertyChanged("IsInstalled");
+            }
+
+            public void UpdateBeingRemoveStatus(bool isBeingRemoved) {
+                this.IsBeingRemoved = isBeingRemoved;
+                OnPropertyChanged("isBeingRemoved");
+                Console.WriteLine("changing");
+            }
+
+            public bool GetStatusBeingRemoved() {
+                return IsBeingRemoved;
             }
 
         }
