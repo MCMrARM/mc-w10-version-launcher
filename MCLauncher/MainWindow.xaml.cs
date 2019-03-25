@@ -230,25 +230,25 @@ namespace MCLauncher {
 
         private void InvokeRemove(Version v) {
             if (!v.GetStatusBeingRemoved()) {
-                foreach (Process Proc in Process.GetProcesses()) {
-                    if (Proc.ProcessName.Contains("Minecraft")) {
-                        Debug.WriteLine("Killing Minecraft process");
-                        Proc.Kill();
-                    }
-                }
-                Thread.Sleep(1000);
-
                 v.UpdateBeingRemoveStatus(true);
                 foreach (var pkg in new PackageManager().FindPackages(MINECRAFT_PACKAGE_FAMILY)) {
                     if (pkg.InstalledLocation.Path.Contains(v.GameDirectory)) {
+                        foreach (Process Proc in Process.GetProcesses()) {
+                            if (Proc.ProcessName.Contains("Minecraft")) {
+                                Debug.WriteLine("Killing Minecraft process");
+                                Proc.Kill();
+                            }
+                        }
+                        Thread.Sleep(1000);
+
                         DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, RemovalOptions.PreserveApplicationData));
                         Debug.WriteLine("Removal of package done: " + pkg.Id.FullName);
                         break;
                     }
                 }
                 DeleteDirectory(v.GameDirectory);
-                v.UpdateInstallStatus();
                 v.UpdateBeingRemoveStatus(false);
+                v.UpdateInstallStatus();
             }
         }
 
@@ -347,7 +347,6 @@ namespace MCLauncher {
             public void UpdateBeingRemoveStatus(bool isBeingRemoved) {
                 this.IsBeingRemoved = isBeingRemoved;
                 OnPropertyChanged("isBeingRemoved");
-                Console.WriteLine("changing");
             }
 
             public bool GetStatusBeingRemoved() {
