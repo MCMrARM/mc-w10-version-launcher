@@ -11,6 +11,7 @@ namespace MCLauncher {
     using System.IO;
     using System.IO.Compression;
     using System.Threading;
+    using System.Windows.Data;
     using Windows.Foundation;
     using Windows.Management.Core;
     using Windows.Management.Deployment;
@@ -25,6 +26,7 @@ namespace MCLauncher {
         private static readonly string MINECRAFT_PACKAGE_FAMILY = "Microsoft.MinecraftUWP_8wekyb3d8bbwe";
 
         private VersionList _versions;
+        public bool ShowBetas { get; set; } = true;
         private readonly VersionDownloader _anonVersionDownloader = new VersionDownloader();
         private readonly VersionDownloader _userVersionDownloader = new VersionDownloader();
         private readonly Task _userVersionDownloaderLoginTask;
@@ -33,8 +35,12 @@ namespace MCLauncher {
 
         public MainWindow() {
             InitializeComponent();
+            ShowBetasCheckbox.DataContext = this;
+
             _versions = new VersionList("versions.json", this);
             VersionList.ItemsSource = _versions;
+            var view = CollectionViewSource.GetDefaultView(VersionList.ItemsSource) as CollectionView;
+            view.Filter = VersionListBetaFilter;
             _userVersionDownloaderLoginTask = new Task(() => {
                 _userVersionDownloader.EnableUserAuthorization();
             });
@@ -231,6 +237,17 @@ namespace MCLauncher {
         private void InvokeRemove(Version v) {
             Directory.Delete(v.GameDirectory, true);
             v.UpdateInstallStatus();
+        }
+
+        private void ShowBetaVersionsCheck_Changed(object sender, RoutedEventArgs e)
+        {
+            ShowBetas = ShowBetasCheckbox.IsChecked ?? false;
+            CollectionViewSource.GetDefaultView(VersionList.ItemsSource).Refresh();
+        }
+
+        private bool VersionListBetaFilter(object obj)
+        {
+            return !(obj as Version).IsBeta || ShowBetas;
         }
     }
 
