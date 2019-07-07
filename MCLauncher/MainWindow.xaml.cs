@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Newtonsoft.Json;
 
 namespace MCLauncher {
     using System.ComponentModel;
@@ -24,9 +25,10 @@ namespace MCLauncher {
     public partial class MainWindow : Window, ICommonVersionCommands {
 
         private static readonly string MINECRAFT_PACKAGE_FAMILY = "Microsoft.MinecraftUWP_8wekyb3d8bbwe";
+        private static readonly string PREFS_PATH = @"preferences.json";
 
         private VersionList _versions;
-        public bool ShowBetas { get; set; } = true;
+        public Preferences UserPrefs { get; }
         private readonly VersionDownloader _anonVersionDownloader = new VersionDownloader();
         private readonly VersionDownloader _userVersionDownloader = new VersionDownloader();
         private readonly Task _userVersionDownloaderLoginTask;
@@ -36,6 +38,16 @@ namespace MCLauncher {
         public MainWindow() {
             InitializeComponent();
             ShowBetasCheckbox.DataContext = this;
+
+            if (File.Exists(PREFS_PATH))
+            {
+                UserPrefs = JsonConvert.DeserializeObject<Preferences>(File.ReadAllText(PREFS_PATH));
+            }
+            else
+            {
+                UserPrefs = new Preferences();
+                RewritePrefs();
+            }
 
             _versions = new VersionList("versions.json", this);
             VersionList.ItemsSource = _versions;
@@ -241,13 +253,19 @@ namespace MCLauncher {
 
         private void ShowBetaVersionsCheck_Changed(object sender, RoutedEventArgs e)
         {
-            ShowBetas = ShowBetasCheckbox.IsChecked ?? false;
+            UserPrefs.ShowBetas = ShowBetasCheckbox.IsChecked ?? false;
             CollectionViewSource.GetDefaultView(VersionList.ItemsSource).Refresh();
+            RewritePrefs();
         }
 
         private bool VersionListBetaFilter(object obj)
         {
-            return !(obj as Version).IsBeta || ShowBetas;
+            return !(obj as Version).IsBeta || UserPrefs.ShowBetas;
+        }
+
+        private void RewritePrefs()
+        {
+            File.WriteAllText(PREFS_PATH, JsonConvert.SerializeObject(UserPrefs));
         }
     }
 
