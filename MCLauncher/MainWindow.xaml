@@ -59,8 +59,12 @@
             </Grid>
         </DataTemplate>
     </Window.Resources>
-    <Grid>
-        <ListBox Name="VersionList" Margin="10,10,10,10"  d:DataContext="{d:DesignData /SampleData/Versions.xaml}" ItemsSource="{Binding}" HorizontalContentAlignment="Stretch">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="30"/>
+        </Grid.RowDefinitions>
+        <ListBox Name="VersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" ItemsSource="{Binding}" HorizontalContentAlignment="Stretch" Grid.Row="0">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <ContentControl x:Name="control" Content="{Binding}" ContentTemplate="{StaticResource templateVersionNotInstalled}"/>
@@ -77,6 +81,7 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
+        <CheckBox Name="ShowBetasCheckbox" Content="Show beta versions" Height="15" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Margin="0,0,0,-10" Checked="ShowBetaVersionsCheck_Changed" Unchecked="ShowBetaVersionsCheck_Changed" IsChecked="{Binding UserPrefs.ShowBetas }" Grid.Row="1"/>
 
     </Grid>
 </Window>

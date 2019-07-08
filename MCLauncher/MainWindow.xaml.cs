@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Newtonsoft.Json;
 
 namespace MCLauncher {
     using System.ComponentModel;
@@ -11,6 +12,7 @@ namespace MCLauncher {
     using System.IO;
     using System.IO.Compression;
     using System.Threading;
+    using System.Windows.Data;
     using Windows.Foundation;
     using Windows.Management.Core;
     using Windows.Management.Deployment;
@@ -23,8 +25,10 @@ namespace MCLauncher {
     public partial class MainWindow : Window, ICommonVersionCommands {
 
         private static readonly string MINECRAFT_PACKAGE_FAMILY = "Microsoft.MinecraftUWP_8wekyb3d8bbwe";
+        private static readonly string PREFS_PATH = @"preferences.json";
 
         private VersionList _versions;
+        public Preferences UserPrefs { get; }
         private readonly VersionDownloader _anonVersionDownloader = new VersionDownloader();
         private readonly VersionDownloader _userVersionDownloader = new VersionDownloader();
         private readonly Task _userVersionDownloaderLoginTask;
@@ -33,8 +37,19 @@ namespace MCLauncher {
 
         public MainWindow() {
             InitializeComponent();
+            ShowBetasCheckbox.DataContext = this;
+
+            if (File.Exists(PREFS_PATH)) {
+                UserPrefs = JsonConvert.DeserializeObject<Preferences>(File.ReadAllText(PREFS_PATH));
+            } else {
+                UserPrefs = new Preferences();
+                RewritePrefs();
+            }
+
             _versions = new VersionList("versions.json", this);
             VersionList.ItemsSource = _versions;
+            var view = CollectionViewSource.GetDefaultView(VersionList.ItemsSource) as CollectionView;
+            view.Filter = VersionListBetaFilter;
             _userVersionDownloaderLoginTask = new Task(() => {
                 _userVersionDownloader.EnableUserAuthorization();
             });
@@ -231,6 +246,20 @@ namespace MCLauncher {
         private void InvokeRemove(Version v) {
             Directory.Delete(v.GameDirectory, true);
             v.UpdateInstallStatus();
+        }
+
+        private void ShowBetaVersionsCheck_Changed(object sender, RoutedEventArgs e) {
+            UserPrefs.ShowBetas = ShowBetasCheckbox.IsChecked ?? false;
+            CollectionViewSource.GetDefaultView(VersionList.ItemsSource).Refresh();
+            RewritePrefs();
+        }
+
+        private bool VersionListBetaFilter(object obj) {
+            return !(obj as Version).IsBeta || UserPrefs.ShowBetas;
+        }
+
+        private void RewritePrefs() {
+            File.WriteAllText(PREFS_PATH, JsonConvert.SerializeObject(UserPrefs));
         }
     }
 
