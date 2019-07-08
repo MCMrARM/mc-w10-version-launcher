@@ -39,12 +39,9 @@ namespace MCLauncher {
             InitializeComponent();
             ShowBetasCheckbox.DataContext = this;
 
-            if (File.Exists(PREFS_PATH))
-            {
+            if (File.Exists(PREFS_PATH)) {
                 UserPrefs = JsonConvert.DeserializeObject<Preferences>(File.ReadAllText(PREFS_PATH));
-            }
-            else
-            {
+            } else {
                 UserPrefs = new Preferences();
                 RewritePrefs();
             }
@@ -251,20 +248,17 @@ namespace MCLauncher {
             v.UpdateInstallStatus();
         }
 
-        private void ShowBetaVersionsCheck_Changed(object sender, RoutedEventArgs e)
-        {
+        private void ShowBetaVersionsCheck_Changed(object sender, RoutedEventArgs e) {
             UserPrefs.ShowBetas = ShowBetasCheckbox.IsChecked ?? false;
             CollectionViewSource.GetDefaultView(VersionList.ItemsSource).Refresh();
             RewritePrefs();
         }
 
-        private bool VersionListBetaFilter(object obj)
-        {
+        private bool VersionListBetaFilter(object obj) {
             return !(obj as Version).IsBeta || UserPrefs.ShowBetas;
         }
 
-        private void RewritePrefs()
-        {
+        private void RewritePrefs() {
             File.WriteAllText(PREFS_PATH, JsonConvert.SerializeObject(UserPrefs));
         }
     }
