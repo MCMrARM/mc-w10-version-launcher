@@ -210,7 +210,16 @@ namespace MCLauncher {
                     if (Interlocked.CompareExchange(ref _userVersionDownloaderLoginTaskStarted, 1, 0) == 0) {
                         _userVersionDownloaderLoginTask.Start();
                     }
-                    await _userVersionDownloaderLoginTask;
+                    Debug.WriteLine("Waiting for authentication");
+                    try {
+                        await _userVersionDownloaderLoginTask;
+                        Debug.WriteLine("Authentication complete");
+                    } catch(Exception e) {
+                        v.DownloadInfo = null;
+                        Debug.WriteLine("Authentication failed:\n" + e.ToString());
+                        MessageBox.Show("Failed to authenticate. Please make sure your account is subscribed to the beta programme.\n\n" + e.ToString(), "Authentication failed");
+                        return;
+                    }
                 }
                 try {
                     await downloader.Download(v.UUID, "1", dlPath, (current, total) => {
