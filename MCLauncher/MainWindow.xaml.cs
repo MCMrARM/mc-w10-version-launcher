@@ -38,6 +38,7 @@ namespace MCLauncher {
         public MainWindow() {
             InitializeComponent();
             ShowBetasCheckbox.DataContext = this;
+            ShowInstalledVersionsOnlyCheckbox.DataContext = this;
 
             if (File.Exists(PREFS_PATH)) {
                 UserPrefs = JsonConvert.DeserializeObject<Preferences>(File.ReadAllText(PREFS_PATH));
@@ -49,7 +50,7 @@ namespace MCLauncher {
             _versions = new VersionList("versions.json", this);
             VersionList.ItemsSource = _versions;
             var view = CollectionViewSource.GetDefaultView(VersionList.ItemsSource) as CollectionView;
-            view.Filter = VersionListBetaFilter;
+            view.Filter = VersionListFilter;
             _userVersionDownloaderLoginTask = new Task(() => {
                 _userVersionDownloader.EnableUserAuthorization();
             });
@@ -259,8 +260,15 @@ namespace MCLauncher {
             RewritePrefs();
         }
 
-        private bool VersionListBetaFilter(object obj) {
-            return !(obj as Version).IsBeta || UserPrefs.ShowBetas;
+        private void ShowInstalledOnlyCheck_Changed(object sender, RoutedEventArgs e) {
+            UserPrefs.ShowInstalledOnly = ShowInstalledVersionsOnlyCheckbox.IsChecked ?? false;
+            CollectionViewSource.GetDefaultView(VersionList.ItemsSource).Refresh();
+            RewritePrefs();
+        }
+
+        private bool VersionListFilter(object obj) {
+            Version v = obj as Version;
+            return (!v.IsBeta || UserPrefs.ShowBetas) && (v.IsInstalled || !UserPrefs.ShowInstalledOnly);
         }
 
         private void RewritePrefs() {

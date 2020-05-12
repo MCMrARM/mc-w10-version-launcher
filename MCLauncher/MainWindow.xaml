@@ -62,9 +62,9 @@
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
-            <RowDefinition Height="30"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <ListBox Name="VersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" ItemsSource="{Binding}" HorizontalContentAlignment="Stretch" Grid.Row="0">
+        <ListBox Name="VersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" ItemsSource="{Binding}" HorizontalContentAlignment="Stretch" Grid.Row="0" Margin="0,0,0,10">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <ContentControl x:Name="control" Content="{Binding}" ContentTemplate="{StaticResource templateVersionNotInstalled}"/>
@@ -81,7 +81,14 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-        <CheckBox Name="ShowBetasCheckbox" Content="Show beta versions" Height="15" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Margin="0,0,0,-10" Checked="ShowBetaVersionsCheck_Changed" Unchecked="ShowBetaVersionsCheck_Changed" IsChecked="{Binding UserPrefs.ShowBetas }" Grid.Row="1"/>
+        <Grid Grid.Row="1" VerticalAlignment="Center" Margin="0,5,0,5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <CheckBox Grid.Row="0" Grid.Column="0" Name="ShowBetasCheckbox" Content="Show beta versions" Checked="ShowBetaVersionsCheck_Changed" Unchecked="ShowBetaVersionsCheck_Changed" IsChecked="{Binding UserPrefs.ShowBetas }" />
+            <CheckBox Grid.Row="0" Grid.Column="1" Margin="15,0,0,0" Name="ShowInstalledVersionsOnlyCheckbox" Content="Show installed versions only" Checked="ShowInstalledOnlyCheck_Changed" Unchecked="ShowInstalledOnlyCheck_Changed" IsChecked="{Binding UserPrefs.ShowInstalledOnly }" />
+        </Grid>
 
     </Grid>
 </Window>
