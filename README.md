@@ -17,5 +17,6 @@ This tool will **not** help you to pirate the game; it requires that you have a 
 - Run `MCLauncher.exe` to start the launcher.
 
 ## Frequently Asked Questions
-**Does this allow running multiple instances of Minecraft: Bedrock at the same time?
+**Does this allow running multiple instances of Minecraft: Bedrock at the same time?**
+
 At the time of writing, no. It allows you to _install_ multiple versions, but only one version can run at a time.
