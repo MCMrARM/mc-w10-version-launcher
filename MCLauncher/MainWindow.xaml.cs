@@ -109,8 +109,13 @@ namespace MCLauncher {
                 Debug.WriteLine("Deployment progress: " + p.state + " " + p.percentage + "%");
             };
             t.Completed += (v, p) => {
-                Debug.WriteLine("Deployment done: " + p);
-                src.SetResult(1);
+                if (p == AsyncStatus.Error) {
+                    Debug.WriteLine("Deployment failed: " + v.GetResults().ErrorText);
+                    src.SetException(new Exception("Deployment failed: " + v.GetResults().ErrorText));
+                } else {
+                    Debug.WriteLine("Deployment done: " + p);
+                    src.SetResult(1);
+                }
             };
             await src.Task;
         }
