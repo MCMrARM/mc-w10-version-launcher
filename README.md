@@ -16,6 +16,10 @@ This tool will **not** help you to pirate the game; it requires that you have a 
 - Download the latest release from the [Releases](/releases) section. Unzip it somewhere.
 - Run `MCLauncher.exe` to start the launcher.
 
+## Compiling the launcher yourself
+You'll need Visual Studio with Windows 10 SDK version 10.0.17763 and .NET Framework 4.6.1 SDK installed. You can find these in the Visual Studio Installer if you don't have them out of the box.
+The project should build out of the box with VS as long as you haven't done anything bizarre.
+
 ## Frequently Asked Questions
 **Does this allow running multiple instances of Minecraft: Bedrock at the same time?**
 
