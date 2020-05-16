@@ -13,7 +13,7 @@ This tool will **not** help you to pirate the game; it requires that you have a 
 - If you want to be able to use beta versions, you'll additionally need to **subscribe to the Minecraft Beta program using Xbox Insider Hub**.
 
 ## Setup
-- Download the latest release from the [Releases](/releases) section. Unzip it somewhere.
+- Download the latest release from the [Releases](https://github.com/MCMrARM/mc-w10-version-launcher/releases) section. Unzip it somewhere.
 - Run `MCLauncher.exe` to start the launcher.
 
 ## Compiling the launcher yourself
