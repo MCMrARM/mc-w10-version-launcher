@@ -13,6 +13,7 @@ namespace MCLauncher {
     using System.IO.Compression;
     using System.Threading;
     using System.Windows.Data;
+    using Windows.ApplicationModel;
     using Windows.Foundation;
     using Windows.Management.Core;
     using Windows.Management.Deployment;
@@ -171,22 +172,43 @@ namespace MCLauncher {
             Directory.Delete(tmpDir, true);
         }
 
+        private async Task RemovePackage(Package pkg) {
+            Debug.WriteLine("Removing package: " + pkg.Id.FullName);
+            if (!pkg.IsDevelopmentMode) {
+                BackupMinecraftDataForRemoval();
+                await DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, 0));
+            } else {
+                Debug.WriteLine("Package is in development mode");
+                await DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, RemovalOptions.PreserveApplicationData));
+            }
+            Debug.WriteLine("Removal of package done: " + pkg.Id.FullName);
+        }
+
+        private string GetPackagePath(Package pkg) {
+            try {
+                return pkg.InstalledLocation.Path;
+            } catch (FileNotFoundException) {
+                return "";
+            }
+        }
+
+        private async Task UnregisterPackage(string gameDir) {
+            foreach (var pkg in new PackageManager().FindPackages(MINECRAFT_PACKAGE_FAMILY)) {
+                string location = GetPackagePath(pkg);
+                if (location == "" || location == gameDir) {
+                    await RemovePackage(pkg);
+                }
+            }
+        }
+
         private async Task ReRegisterPackage(string gameDir) {
             foreach (var pkg in new PackageManager().FindPackages(MINECRAFT_PACKAGE_FAMILY)) {
-                if (pkg.InstalledLocation.Path == gameDir) {
-                    Debug.WriteLine("Skipping package removal - same path: " + pkg.Id.FullName + " " + pkg.InstalledLocation.Path);
+                string location = GetPackagePath(pkg);
+                if (location == gameDir) {
+                    Debug.WriteLine("Skipping package removal - same path: " + pkg.Id.FullName + " " + location);
                     return;
                 }
-                Debug.WriteLine("Removing package: " + pkg.Id.FullName + " " + pkg.InstalledLocation.Path);
-                if (!pkg.IsDevelopmentMode) {
-                    BackupMinecraftDataForRemoval();
-                    await DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, 0));
-                } else {
-                    Debug.WriteLine("Package is in development mode");
-                    await DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, RemovalOptions.PreserveApplicationData));
-                }
-                Debug.WriteLine("Removal of package done: " + pkg.Id.FullName);
-                break;
+                await RemovePackage(pkg);
             }
             Debug.WriteLine("Registering package");
             string manifestPath = Path.Combine(gameDir, "AppxManifest.xml");
@@ -259,8 +281,11 @@ namespace MCLauncher {
         }
 
         private void InvokeRemove(Version v) {
-            Directory.Delete(v.GameDirectory, true);
-            v.UpdateInstallStatus();
+            Task.Run(async () => {
+                await UnregisterPackage(Path.GetFullPath(v.GameDirectory));
+                Directory.Delete(v.GameDirectory, true);
+                v.UpdateInstallStatus();
+            });
         }
 
         private void ShowBetaVersionsCheck_Changed(object sender, RoutedEventArgs e) {
