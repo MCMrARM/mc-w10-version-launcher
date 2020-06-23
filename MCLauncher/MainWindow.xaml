@@ -51,11 +51,11 @@
                     <RowDefinition />
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding DisplayName}" FontWeight="Bold" />
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding DownloadInfo.DisplayStatus}" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding StateChangeInfo.DisplayStatus}" />
                 <Canvas Name="progressSizeHack" Grid.Row="2" Grid.Column="0" Height="12">
-                    <ProgressBar Width="{Binding Path=ActualWidth, ElementName=progressSizeHack, Mode=OneWay}" Height="{Binding Path=ActualHeight, ElementName=progressSizeHack, Mode=OneWay}" Minimum="0" Maximum="{Binding DownloadInfo.TotalSize}" Value="{Binding DownloadInfo.DownloadedBytes}" IsIndeterminate="{Binding DownloadInfo.IsProgressIndeterminate}" />
+                    <ProgressBar Width="{Binding Path=ActualWidth, ElementName=progressSizeHack, Mode=OneWay}" Height="{Binding Path=ActualHeight, ElementName=progressSizeHack, Mode=OneWay}" Minimum="0" Maximum="{Binding StateChangeInfo.TotalSize}" Value="{Binding StateChangeInfo.DownloadedBytes}" IsIndeterminate="{Binding StateChangeInfo.IsProgressIndeterminate}" />
                 </Canvas>
-                <Button Grid.Row="2" Grid.Column="1" Content="X" Width="20" Margin="10 0 0 0" Command="{Binding DownloadInfo.CancelCommand}" />
+                <Button Grid.Row="2" Grid.Column="1" Content="X" Width="20" Margin="10 0 0 0" Command="{Binding StateChangeInfo.CancelCommand}" />
             </Grid>
         </DataTemplate>
     </Window.Resources>
@@ -73,7 +73,7 @@
                         <DataTrigger Binding="{Binding IsInstalled}" Value="True">
                             <Setter TargetName="control" Property="ContentTemplate" Value="{StaticResource templateVersionInstalled}"/>
                         </DataTrigger>
-                        <DataTrigger Binding="{Binding IsDownloading}" Value="True">
+                        <DataTrigger Binding="{Binding IsStateChanging}" Value="True">
                             <Setter TargetName="control" Property="ContentTemplate" Value="{StaticResource templateVersionDownloading}"/>
                         </DataTrigger>
                     </DataTemplate.Triggers>

@@ -1,10 +1,9 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
-using Newtonsoft.Json;
 
 namespace MCLauncher {
     using System.ComponentModel;
@@ -80,6 +79,8 @@ namespace MCLauncher {
                 return;
             _hasLaunchTask = true;
             Task.Run(async () => {
+                v.StateChangeInfo = new VersionStateChangeInfo();
+                v.StateChangeInfo.IsLaunching = true;
                 string gameDir = Path.GetFullPath(v.GameDirectory);
                 try {
                     await ReRegisterPackage(gameDir);
@@ -87,6 +88,7 @@ namespace MCLauncher {
                     Debug.WriteLine("App re-register failed:\n" + e.ToString());
                     MessageBox.Show("App re-register failed:\n" + e.ToString());
                     _hasLaunchTask = false;
+                    v.StateChangeInfo = null;
                     return;
                 }
 
@@ -96,10 +98,12 @@ namespace MCLauncher {
                         await pkg[0].LaunchAsync();
                     Debug.WriteLine("App launch finished!");
                     _hasLaunchTask = false;
+                    v.StateChangeInfo = null;
                 } catch (Exception e) {
                     Debug.WriteLine("App launch failed:\n" + e.ToString());
                     MessageBox.Show("App launch failed:\n" + e.ToString());
                     _hasLaunchTask = false;
+                    v.StateChangeInfo = null;
                     return;
                 }
             });
@@ -219,9 +223,9 @@ namespace MCLauncher {
 
         private void InvokeDownload(Version v) {
             CancellationTokenSource cancelSource = new CancellationTokenSource();
-            v.DownloadInfo = new VersionDownloadInfo();
-            v.DownloadInfo.IsInitializing = true;
-            v.DownloadInfo.CancelCommand = new RelayCommand((o) => cancelSource.Cancel());
+            v.StateChangeInfo = new VersionStateChangeInfo();
+            v.StateChangeInfo.IsInitializing = true;
+            v.StateChangeInfo.CancelCommand = new RelayCommand((o) => cancelSource.Cancel());
 
             Debug.WriteLine("Download start");
             Task.Run(async () => {
@@ -236,8 +240,8 @@ namespace MCLauncher {
                     try {
                         await _userVersionDownloaderLoginTask;
                         Debug.WriteLine("Authentication complete");
-                    } catch(Exception e) {
-                        v.DownloadInfo = null;
+                    } catch (Exception e) {
+                        v.StateChangeInfo = null;
                         Debug.WriteLine("Authentication failed:\n" + e.ToString());
                         MessageBox.Show("Failed to authenticate. Please make sure your account is subscribed to the beta programme.\n\n" + e.ToString(), "Authentication failed");
                         return;
@@ -245,45 +249,48 @@ namespace MCLauncher {
                 }
                 try {
                     await downloader.Download(v.UUID, "1", dlPath, (current, total) => {
-                        if (v.DownloadInfo.IsInitializing) {
+                        if (v.StateChangeInfo.IsInitializing) {
                             Debug.WriteLine("Actual download started");
-                            v.DownloadInfo.IsInitializing = false;
+                            v.StateChangeInfo.IsInitializing = false;
                             if (total.HasValue)
-                                v.DownloadInfo.TotalSize = total.Value;
+                                v.StateChangeInfo.TotalSize = total.Value;
                         }
-                        v.DownloadInfo.DownloadedBytes = current;
+                        v.StateChangeInfo.DownloadedBytes = current;
                     }, cancelSource.Token);
                     Debug.WriteLine("Download complete");
                 } catch (Exception e) {
                     Debug.WriteLine("Download failed:\n" + e.ToString());
                     if (!(e is TaskCanceledException))
                         MessageBox.Show("Download failed:\n" + e.ToString());
-                    v.DownloadInfo = null;
+                    v.StateChangeInfo = null;
                     return;
                 }
                 try {
-                    v.DownloadInfo.IsExtracting = true;
+                    v.StateChangeInfo.IsExtracting = true;
                     string dirPath = v.GameDirectory;
                     if (Directory.Exists(dirPath))
                         Directory.Delete(dirPath, true);
                     ZipFile.ExtractToDirectory(dlPath, dirPath);
-                    v.DownloadInfo = null;
+                    v.StateChangeInfo = null;
                     File.Delete(Path.Combine(dirPath, "AppxSignature.p7x"));
                 } catch (Exception e) {
                     Debug.WriteLine("Extraction failed:\n" + e.ToString());
                     MessageBox.Show("Extraction failed:\n" + e.ToString());
-                    v.DownloadInfo = null;
+                    v.StateChangeInfo = null;
                     return;
                 }
-                v.DownloadInfo = null;
+                v.StateChangeInfo = null;
                 v.UpdateInstallStatus();
             });
         }
 
         private void InvokeRemove(Version v) {
             Task.Run(async () => {
+                v.StateChangeInfo = new VersionStateChangeInfo();
+                v.StateChangeInfo.IsUninstalling = true;
                 await UnregisterPackage(Path.GetFullPath(v.GameDirectory));
                 Directory.Delete(v.GameDirectory, true);
+                v.StateChangeInfo = null;
                 v.UpdateInstallStatus();
             });
         }
@@ -371,13 +378,13 @@ namespace MCLauncher {
             public ICommand DownloadCommand { get; set; }
             public ICommand RemoveCommand { get; set; }
 
-            private VersionDownloadInfo _downloadInfo;
-            public VersionDownloadInfo DownloadInfo {
-                get { return _downloadInfo; }
-                set { _downloadInfo = value; OnPropertyChanged("DownloadInfo"); OnPropertyChanged("IsDownloading"); }
+            private VersionStateChangeInfo _stateChangeInfo;
+            public VersionStateChangeInfo StateChangeInfo {
+                get { return _stateChangeInfo; }
+                set { _stateChangeInfo = value; OnPropertyChanged("StateChangeInfo"); OnPropertyChanged("IsStateChanging"); }
             }
 
-            public bool IsDownloading => DownloadInfo != null;
+            public bool IsStateChanging => StateChangeInfo != null;
 
             public void UpdateInstallStatus() {
                 OnPropertyChanged("IsInstalled");
@@ -385,10 +392,12 @@ namespace MCLauncher {
 
         }
 
-        public class VersionDownloadInfo : NotifyPropertyChangedBase {
+        public class VersionStateChangeInfo : NotifyPropertyChangedBase {
 
             private bool _isInitializing;
             private bool _isExtracting;
+            private bool _isUninstalling;
+            private bool _isLaunching;
             private long _downloadedBytes;
             private long _totalSize;
 
@@ -402,8 +411,18 @@ namespace MCLauncher {
                 set { _isExtracting = value; OnPropertyChanged("IsProgressIndeterminate"); OnPropertyChanged("DisplayStatus"); }
             }
 
+            public bool IsUninstalling {
+                get { return _isUninstalling; }
+                set { _isUninstalling = value; OnPropertyChanged("IsProgressIndeterminate"); OnPropertyChanged("DisplayStatus"); }
+            }
+
+            public bool IsLaunching {
+                get { return _isLaunching; }
+                set { _isLaunching = value; OnPropertyChanged("IsProgressIndeterminate"); OnPropertyChanged("DisplayStatus"); }
+            }
+
             public bool IsProgressIndeterminate {
-                get { return IsInitializing || IsExtracting; }
+                get { return IsInitializing || IsExtracting || IsUninstalling || IsLaunching; }
             }
 
             public long DownloadedBytes {
@@ -422,6 +441,10 @@ namespace MCLauncher {
                         return "Downloading...";
                     if (IsExtracting)
                         return "Extracting...";
+                    if (IsUninstalling)
+                        return "Uninstalling...";
+                    if (IsLaunching)
+                        return "Launching...";
                     return "Downloading... " + (DownloadedBytes / 1024 / 1024) + "MiB/" + (TotalSize / 1024 / 1024) + "MiB";
                 }
             }
