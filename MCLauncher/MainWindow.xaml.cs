@@ -273,6 +273,7 @@ namespace MCLauncher {
                     ZipFile.ExtractToDirectory(dlPath, dirPath);
                     v.StateChangeInfo = null;
                     File.Delete(Path.Combine(dirPath, "AppxSignature.p7x"));
+                    File.Delete(dlPath);
                 } catch (Exception e) {
                     Debug.WriteLine("Extraction failed:\n" + e.ToString());
                     MessageBox.Show("Extraction failed:\n" + e.ToString());
