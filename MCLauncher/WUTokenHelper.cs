@@ -9,13 +9,18 @@ namespace MCLauncher {
     class WUTokenHelper {
 
         public static string GetWUToken() {
-            string token;
-            int status = GetWUToken(out token);
-            if (status >= WU_ERRORS_START && status <= WU_ERRORS_END)
-                throw new WUTokenException(status);
-            else if (status != 0)
-                Marshal.ThrowExceptionForHR(status);
-            return token;
+            try {
+                string token;
+                int status = GetWUToken(out token);
+                if (status >= WU_ERRORS_START && status <= WU_ERRORS_END)
+                    throw new WUTokenException(status);
+                else if (status != 0)
+                    Marshal.ThrowExceptionForHR(status);
+                return token;
+            } catch (SEHException e) {
+                Marshal.ThrowExceptionForHR(e.HResult);
+                return ""; //ghey
+            }
         }
 
         private const int WU_ERRORS_START = 0x7ffc0200;

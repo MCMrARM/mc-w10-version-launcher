@@ -51,16 +51,29 @@
                     <RowDefinition />
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding DisplayName}" FontWeight="Bold" />
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding DownloadInfo.DisplayStatus}" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding StateChangeInfo.DisplayStatus}" />
                 <Canvas Name="progressSizeHack" Grid.Row="2" Grid.Column="0" Height="12">
-                    <ProgressBar Width="{Binding Path=ActualWidth, ElementName=progressSizeHack, Mode=OneWay}" Height="{Binding Path=ActualHeight, ElementName=progressSizeHack, Mode=OneWay}" Minimum="0" Maximum="{Binding DownloadInfo.TotalSize}" Value="{Binding DownloadInfo.DownloadedBytes}" IsIndeterminate="{Binding DownloadInfo.IsProgressIndeterminate}" />
+                    <ProgressBar Width="{Binding Path=ActualWidth, ElementName=progressSizeHack, Mode=OneWay}" Height="{Binding Path=ActualHeight, ElementName=progressSizeHack, Mode=OneWay}" Minimum="0" Maximum="{Binding StateChangeInfo.TotalSize}" Value="{Binding StateChangeInfo.DownloadedBytes}" IsIndeterminate="{Binding StateChangeInfo.IsProgressIndeterminate}" />
                 </Canvas>
-                <Button Grid.Row="2" Grid.Column="1" Content="X" Width="20" Margin="10 0 0 0" Command="{Binding DownloadInfo.CancelCommand}" />
+                <Button Grid.Row="2" Grid.Column="1" Content="X" Width="20" Margin="10 0 0 0" Command="{Binding StateChangeInfo.CancelCommand}" />
             </Grid>
         </DataTemplate>
     </Window.Resources>
-    <Grid>
-        <ListBox Name="VersionList" Margin="10,41,10,10"  d:DataContext="{d:DesignData /SampleData/Versions.xaml}" ItemsSource="{Binding}" HorizontalContentAlignment="Stretch">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Button Content="Import"
+                Height="40"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                Margin="0,0,0,10"
+                VerticalAlignment="Center"
+                Click="ImportButtonClicked"
+                Grid.Row="0" />
+        <ListBox Name="VersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" ItemsSource="{Binding}" HorizontalContentAlignment="Stretch" Grid.Row="1" Margin="0,0,0,10">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <ContentControl x:Name="control" Content="{Binding}" ContentTemplate="{StaticResource templateVersionNotInstalled}"/>
@@ -69,7 +82,7 @@
                         <DataTrigger Binding="{Binding IsInstalled}" Value="True">
                             <Setter TargetName="control" Property="ContentTemplate" Value="{StaticResource templateVersionInstalled}"/>
                         </DataTrigger>
-                        <DataTrigger Binding="{Binding IsDownloading}" Value="True">
+                        <DataTrigger Binding="{Binding IsStateChanging}" Value="True">
                             <Setter TargetName="control" Property="ContentTemplate" Value="{StaticResource templateVersionDownloading}"/>
                         </DataTrigger>
                     </DataTemplate.Triggers>
@@ -77,11 +90,13 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-        <Button Content="Import"
-                HorizontalAlignment="Left"
-                Margin="10,4,0,0"
-                VerticalAlignment="Top"
-                Width="763"
-                Click="ImportButtonClicked" Height="37"/>
+        <Grid Grid.Row="2" VerticalAlignment="Center" Margin="0,5,0,5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <CheckBox Grid.Row="0" Grid.Column="0" Name="ShowBetasCheckbox" Content="Show beta versions" Checked="ShowBetaVersionsCheck_Changed" Unchecked="ShowBetaVersionsCheck_Changed" IsChecked="{Binding UserPrefs.ShowBetas }" />
+            <CheckBox Grid.Row="0" Grid.Column="1" Margin="15,0,0,0" Name="ShowInstalledVersionsOnlyCheckbox" Content="Show installed versions only" Checked="ShowInstalledOnlyCheck_Changed" Unchecked="ShowInstalledOnlyCheck_Changed" IsChecked="{Binding UserPrefs.ShowInstalledOnly }" />
+        </Grid>
     </Grid>
 </Window>
