@@ -13,12 +13,14 @@ namespace MCLauncher {
     class VersionList : ObservableCollection<WPFDataTypes.Version> {
 
         private readonly string _cacheFile;
+        private readonly string _importedDirectory;
         private readonly WPFDataTypes.ICommonVersionCommands _commands;
         private readonly HttpClient _client = new HttpClient();
         HashSet<string> dbVersions = new HashSet<string>();
 
-        public VersionList(string cacheFile, WPFDataTypes.ICommonVersionCommands commands) {
+        public VersionList(string cacheFile, string importedDirectory, WPFDataTypes.ICommonVersionCommands commands) {
             _cacheFile = cacheFile;
+            _importedDirectory = importedDirectory;
             _commands = commands;
         }
 
@@ -29,11 +31,12 @@ namespace MCLauncher {
                 dbVersions.Add(o[0].Value<string>());
                 Add(new WPFDataTypes.Version(o[1].Value<string>(), o[0].Value<string>(), o[2].Value<int>() == 1, _commands));
             }
-            string[] subdirectoryEntries = Directory.GetDirectories(".");
+        }
+
+        public async Task LoadImported() {
+            string[] subdirectoryEntries = await Task.Run(() => Directory.GetDirectories(_importedDirectory));
             foreach (string subdirectory in subdirectoryEntries) {
-                if (!dbVersions.Contains(subdirectory)) {
-                    AddEntry(subdirectory.Remove(0,2));
-                }
+                AddEntry(Path.GetFileName(subdirectory), subdirectory);
             }
         }
 
@@ -55,8 +58,10 @@ namespace MCLauncher {
             ParseList(JArray.Parse(data));
         }
 
-        public void AddEntry(string name) {
-            Add(new WPFDataTypes.Version("Unknown", name.Replace(".appx", ""), false, name, _commands));
+        public WPFDataTypes.Version AddEntry(string name, string path) {
+            var result = new WPFDataTypes.Version(WPFDataTypes.Version.UNKNOWN_UUID, name.Replace(".appx", ""), false, path, _commands);
+            Add(result);
+            return result;
         }
 
     }
