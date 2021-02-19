@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using Microsoft.Win32;
 
 namespace MCLauncher {
     using System.ComponentModel;
@@ -26,6 +27,7 @@ namespace MCLauncher {
 
         private static readonly string MINECRAFT_PACKAGE_FAMILY = "Microsoft.MinecraftUWP_8wekyb3d8bbwe";
         private static readonly string PREFS_PATH = @"preferences.json";
+        private static readonly string IMPORTED_VERSIONS_PATH = @"imported_versions";
 
         private VersionList _versions;
         public Preferences UserPrefs { get; }
@@ -47,7 +49,7 @@ namespace MCLauncher {
                 RewritePrefs();
             }
 
-            _versions = new VersionList("versions.json", this);
+            _versions = new VersionList("versions.json", IMPORTED_VERSIONS_PATH, this);
             VersionList.ItemsSource = _versions;
             var view = CollectionViewSource.GetDefaultView(VersionList.ItemsSource) as CollectionView;
             view.Filter = VersionListFilter;
@@ -65,7 +67,33 @@ namespace MCLauncher {
                 } catch (Exception e) {
                     Debug.WriteLine("List download failed:\n" + e.ToString());
                 }
+                await _versions.LoadImported();
             });
+        }
+
+        private async void ImportButtonClicked(object sender, RoutedEventArgs e) {
+            Microsoft.Win32.OpenFileDialog openFileDlg = new Microsoft.Win32.OpenFileDialog();
+            Nullable<bool> result = openFileDlg.ShowDialog();
+            if (result == true) {
+                string directory = Path.Combine(IMPORTED_VERSIONS_PATH, openFileDlg.SafeFileName);
+                if (Directory.Exists(directory)) {
+                    MessageBoxResult messageBoxResult = System.Windows.MessageBox.Show("A version with the same name was already imported. Do you want to delete it ?", "Delete Confirmation", System.Windows.MessageBoxButton.YesNo);
+                    if (messageBoxResult == MessageBoxResult.Yes) {
+                        Directory.Delete(directory, true);
+                    } else {
+                        return;
+                    }
+                }
+
+                var versionEntry = _versions.AddEntry(openFileDlg.SafeFileName, directory);
+                await Task.Run(() => {
+                    versionEntry.StateChangeInfo = new VersionStateChangeInfo();
+                    versionEntry.StateChangeInfo.IsExtracting = true;
+                    ZipFile.ExtractToDirectory(openFileDlg.FileName, directory);
+                    versionEntry.StateChangeInfo = null;
+                });
+                MessageBox.Show("Successfully imported appx: " + openFileDlg.FileName);
+            }
         }
 
         public ICommand LaunchCommand => new RelayCommand((v) => InvokeLaunch((Version)v));
@@ -292,7 +320,13 @@ namespace MCLauncher {
                 await UnregisterPackage(Path.GetFullPath(v.GameDirectory));
                 Directory.Delete(v.GameDirectory, true);
                 v.StateChangeInfo = null;
-                v.UpdateInstallStatus();
+                if (v.UUID == Version.UNKNOWN_UUID) {
+                    Dispatcher.Invoke(() => _versions.Remove(v));
+                    Debug.WriteLine("Removed imported version " + v.DisplayName);
+                } else {
+                    v.UpdateInstallStatus();
+                    Debug.WriteLine("Removed release version " + v.DisplayName);
+                }
             });
         }
 
@@ -345,6 +379,7 @@ namespace MCLauncher {
         }
 
         public class Version : NotifyPropertyChangedBase {
+            public static readonly string UNKNOWN_UUID = "UNKNOWN";
 
             public Version() { }
             public Version(string uuid, string name, bool isBeta, ICommonVersionCommands commands) {
@@ -354,13 +389,23 @@ namespace MCLauncher {
                 this.DownloadCommand = commands.DownloadCommand;
                 this.LaunchCommand = commands.LaunchCommand;
                 this.RemoveCommand = commands.RemoveCommand;
+                this.GameDirectory = "Minecraft-" + Name;
+            }
+            public Version(string uuid, string name, bool isBeta, string directory, ICommonVersionCommands commands) {
+                this.UUID = uuid;
+                this.Name = name;
+                this.IsBeta = isBeta;
+                this.DownloadCommand = commands.DownloadCommand;
+                this.LaunchCommand = commands.LaunchCommand;
+                this.RemoveCommand = commands.RemoveCommand;
+                this.GameDirectory = directory;
             }
 
             public string UUID { get; set; }
             public string Name { get; set; }
             public bool IsBeta { get; set; }
 
-            public string GameDirectory => "Minecraft-" + Name;
+            public string GameDirectory { get; set; }
 
             public bool IsInstalled => Directory.Exists(GameDirectory);
 
