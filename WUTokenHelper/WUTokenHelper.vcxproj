@@ -95,7 +95,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="main.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>

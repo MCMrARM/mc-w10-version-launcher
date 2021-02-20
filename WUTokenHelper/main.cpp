@@ -1,7 +1,6 @@
 ﻿#include "pch.h"
 #include "combaseapi.h"
 #include <thread>
-#include "main.h"
 
 using namespace winrt;
 using namespace Windows::Foundation;
