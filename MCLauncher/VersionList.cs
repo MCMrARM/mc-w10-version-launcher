@@ -5,9 +5,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
-using System.Windows.Threading;
 
 namespace MCLauncher {
     class VersionList : ObservableCollection<WPFDataTypes.Version> {

@@ -1,10 +1,8 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using Microsoft.Win32;
 
 namespace MCLauncher {
     using System.ComponentModel;
@@ -375,13 +373,9 @@ namespace MCLauncher {
 
         }
 
-        public class Versions : List<Object> {
-        }
-
         public class Version : NotifyPropertyChangedBase {
             public static readonly string UNKNOWN_UUID = "UNKNOWN";
 
-            public Version() { }
             public Version(string uuid, string name, bool isBeta, ICommonVersionCommands commands) {
                 this.UUID = uuid;
                 this.Name = name;
