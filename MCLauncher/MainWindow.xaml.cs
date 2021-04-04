@@ -85,8 +85,7 @@ namespace MCLauncher {
 
                 var versionEntry = _versions.AddEntry(openFileDlg.SafeFileName, directory);
                 await Task.Run(() => {
-                    versionEntry.StateChangeInfo = new VersionStateChangeInfo();
-                    versionEntry.StateChangeInfo.IsExtracting = true;
+                    versionEntry.StateChangeInfo = new VersionStateChangeInfo(VersionState.Extracting);
                     ZipFile.ExtractToDirectory(openFileDlg.FileName, directory);
                     versionEntry.StateChangeInfo = null;
                 });
@@ -105,8 +104,7 @@ namespace MCLauncher {
                 return;
             _hasLaunchTask = true;
             Task.Run(async () => {
-                v.StateChangeInfo = new VersionStateChangeInfo();
-                v.StateChangeInfo.IsLaunching = true;
+                v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Launching);
                 string gameDir = Path.GetFullPath(v.GameDirectory);
                 try {
                     await ReRegisterPackage(gameDir);
@@ -249,8 +247,7 @@ namespace MCLauncher {
 
         private void InvokeDownload(Version v) {
             CancellationTokenSource cancelSource = new CancellationTokenSource();
-            v.StateChangeInfo = new VersionStateChangeInfo();
-            v.StateChangeInfo.IsInitializing = true;
+            v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Initializing);
             v.StateChangeInfo.CancelCommand = new RelayCommand((o) => cancelSource.Cancel());
 
             Debug.WriteLine("Download start");
@@ -275,9 +272,9 @@ namespace MCLauncher {
                 }
                 try {
                     await downloader.Download(v.UUID, "1", dlPath, (current, total) => {
-                        if (v.StateChangeInfo.IsInitializing) {
+                        if (v.StateChangeInfo.VersionState != VersionState.Downloading) {
                             Debug.WriteLine("Actual download started");
-                            v.StateChangeInfo.IsInitializing = false;
+                            v.StateChangeInfo.VersionState = VersionState.Downloading;
                             if (total.HasValue)
                                 v.StateChangeInfo.TotalSize = total.Value;
                         }
@@ -292,7 +289,7 @@ namespace MCLauncher {
                     return;
                 }
                 try {
-                    v.StateChangeInfo.IsExtracting = true;
+                    v.StateChangeInfo.VersionState = VersionState.Extracting;
                     string dirPath = v.GameDirectory;
                     if (Directory.Exists(dirPath))
                         Directory.Delete(dirPath, true);
@@ -313,8 +310,7 @@ namespace MCLauncher {
 
         private void InvokeRemove(Version v) {
             Task.Run(async () => {
-                v.StateChangeInfo = new VersionStateChangeInfo();
-                v.StateChangeInfo.IsUninstalling = true;
+                v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Uninstalling);
                 await UnregisterPackage(Path.GetFullPath(v.GameDirectory));
                 Directory.Delete(v.GameDirectory, true);
                 v.StateChangeInfo = null;
@@ -432,37 +428,45 @@ namespace MCLauncher {
 
         }
 
+        public enum VersionState {
+            Initializing,
+            Downloading,
+            Extracting,
+            Launching,
+            Uninstalling
+        };
+
         public class VersionStateChangeInfo : NotifyPropertyChangedBase {
 
-            private bool _isInitializing;
-            private bool _isExtracting;
-            private bool _isUninstalling;
-            private bool _isLaunching;
+            private VersionState _versionState;
+
             private long _downloadedBytes;
             private long _totalSize;
 
-            public bool IsInitializing {
-                get { return _isInitializing; }
-                set { _isInitializing = value; OnPropertyChanged("IsProgressIndeterminate"); OnPropertyChanged("DisplayStatus"); }
+            public VersionStateChangeInfo(VersionState versionState) {
+                _versionState = versionState;
             }
 
-            public bool IsExtracting {
-                get { return _isExtracting; }
-                set { _isExtracting = value; OnPropertyChanged("IsProgressIndeterminate"); OnPropertyChanged("DisplayStatus"); }
-            }
-
-            public bool IsUninstalling {
-                get { return _isUninstalling; }
-                set { _isUninstalling = value; OnPropertyChanged("IsProgressIndeterminate"); OnPropertyChanged("DisplayStatus"); }
-            }
-
-            public bool IsLaunching {
-                get { return _isLaunching; }
-                set { _isLaunching = value; OnPropertyChanged("IsProgressIndeterminate"); OnPropertyChanged("DisplayStatus"); }
+            public VersionState VersionState {
+                get { return _versionState; }
+                set {
+                    _versionState = value;
+                    OnPropertyChanged("IsProgressIndeterminate");
+                    OnPropertyChanged("DisplayStatus");
+                }
             }
 
             public bool IsProgressIndeterminate {
-                get { return IsInitializing || IsExtracting || IsUninstalling || IsLaunching; }
+                get {
+                    switch (_versionState) {
+                        case VersionState.Initializing:
+                        case VersionState.Extracting:
+                        case VersionState.Uninstalling:
+                        case VersionState.Launching:
+                            return true;
+                        default: return false;
+                    }
+                }
             }
 
             public long DownloadedBytes {
@@ -477,15 +481,16 @@ namespace MCLauncher {
 
             public string DisplayStatus {
                 get {
-                    if (IsInitializing)
-                        return "Downloading...";
-                    if (IsExtracting)
-                        return "Extracting...";
-                    if (IsUninstalling)
-                        return "Uninstalling...";
-                    if (IsLaunching)
-                        return "Launching...";
-                    return "Downloading... " + (DownloadedBytes / 1024 / 1024) + "MiB/" + (TotalSize / 1024 / 1024) + "MiB";
+                    switch(_versionState)
+                    {
+                        case VersionState.Initializing: return "Preparing...";
+                        case VersionState.Downloading:
+                            return "Downloading... " + (DownloadedBytes / 1024 / 1024) + "MiB/" + (TotalSize / 1024 / 1024) + "MiB";
+                        case VersionState.Extracting: return "Extracting...";
+                        case VersionState.Launching: return "Launching...";
+                        case VersionState.Uninstalling: return "Uninstalling...";
+                        default: return "Wtf is happening? ...";
+                    }
                 }
             }
 
