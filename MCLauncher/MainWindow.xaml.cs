@@ -74,10 +74,8 @@ namespace MCLauncher {
             ThemesController.SetTheme(GetThemeEnum(UserPrefs.Theme));
         }
 
-        private ThemesController.ThemeTypes GetThemeEnum(string name)
-        {
-            switch (name.ToLower())
-            {
+        private ThemesController.ThemeTypes GetThemeEnum(string name) {
+            switch (name.ToLower()) {
                 case "colourfuldarktheme":
                 case "colorfuldarktheme":
                     return ThemesController.ThemeTypes.ColourfulDark;
@@ -367,11 +365,9 @@ namespace MCLauncher {
             File.WriteAllText(PREFS_PATH, JsonConvert.SerializeObject(UserPrefs));
         }
 
-        private void ChangeTheme(object sender, RoutedEventArgs e)
-        {
+        private void ChangeTheme(object sender, RoutedEventArgs e) {
             ThemesController.ThemeTypes? theme = null;
-            switch (int.Parse(((MenuItem)sender).Uid))
-            {
+            switch (int.Parse(((MenuItem)sender).Uid)) {
                 case 0:
                     theme = ThemesController.ThemeTypes.Light;
                     break;
@@ -391,7 +387,6 @@ namespace MCLauncher {
             RewritePrefs();
             e.Handled = true;
         }
-
     }
 
     namespace WPFDataTypes {
@@ -401,8 +396,7 @@ namespace MCLauncher {
             public event PropertyChangedEventHandler PropertyChanged;
 
             protected void OnPropertyChanged(string name) {
-                if (PropertyChanged != null)
-                    PropertyChanged(this, new PropertyChangedEventArgs(name));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
             }
 
         }
