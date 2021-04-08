@@ -1,7 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Threading.Tasks;
-using System.Windows;
 using System.Windows.Input;
 
 namespace MCLauncher {
@@ -17,6 +16,11 @@ namespace MCLauncher {
     using Windows.Management.Deployment;
     using Windows.System;
     using WPFDataTypes;
+
+    using System;
+    using System.Windows;
+    using System.Windows.Controls;
+    using REghZyFramework.Themes;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -67,6 +71,24 @@ namespace MCLauncher {
                 }
                 await _versions.LoadImported();
             });
+            ThemesController.SetTheme(GetThemeEnum(UserPrefs.Theme));
+        }
+
+        private ThemesController.ThemeTypes GetThemeEnum(string name)
+        {
+            switch (name.ToLower())
+            {
+                case "colourfuldarktheme":
+                case "colorfuldarktheme":
+                    return ThemesController.ThemeTypes.ColourfulDark;
+                case "colourfullighttheme":
+                case "colorfullighttheme":
+                    return ThemesController.ThemeTypes.ColourfulLight;
+                case "darktheme":
+                    return ThemesController.ThemeTypes.Dark;
+                default:
+                    return ThemesController.ThemeTypes.Light; // Light is default :/
+            }
         }
 
         private async void ImportButtonClicked(object sender, RoutedEventArgs e) {
@@ -93,13 +115,13 @@ namespace MCLauncher {
             }
         }
 
-        public ICommand LaunchCommand => new RelayCommand((v) => InvokeLaunch((Version)v));
+        public ICommand LaunchCommand => new RelayCommand((v) => InvokeLaunch((WPFDataTypes.Version)v));
 
-        public ICommand RemoveCommand => new RelayCommand((v) => InvokeRemove((Version)v));
+        public ICommand RemoveCommand => new RelayCommand((v) => InvokeRemove((WPFDataTypes.Version)v));
 
-        public ICommand DownloadCommand => new RelayCommand((v) => InvokeDownload((Version)v));
+        public ICommand DownloadCommand => new RelayCommand((v) => InvokeDownload((WPFDataTypes.Version)v));
 
-        private void InvokeLaunch(Version v) {
+        private void InvokeLaunch(WPFDataTypes.Version v) {
             if (_hasLaunchTask)
                 return;
             _hasLaunchTask = true;
@@ -245,7 +267,7 @@ namespace MCLauncher {
             RestoreMinecraftDataFromReinstall();
         }
 
-        private void InvokeDownload(Version v) {
+        private void InvokeDownload(WPFDataTypes.Version v) {
             CancellationTokenSource cancelSource = new CancellationTokenSource();
             v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Initializing);
             v.StateChangeInfo.CancelCommand = new RelayCommand((o) => cancelSource.Cancel());
@@ -308,13 +330,13 @@ namespace MCLauncher {
             });
         }
 
-        private void InvokeRemove(Version v) {
+        private void InvokeRemove(WPFDataTypes.Version v) {
             Task.Run(async () => {
                 v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Uninstalling);
                 await UnregisterPackage(Path.GetFullPath(v.GameDirectory));
                 Directory.Delete(v.GameDirectory, true);
                 v.StateChangeInfo = null;
-                if (v.UUID == Version.UNKNOWN_UUID) {
+                if (v.UUID == WPFDataTypes.Version.UNKNOWN_UUID) {
                     Dispatcher.Invoke(() => _versions.Remove(v));
                     Debug.WriteLine("Removed imported version " + v.DisplayName);
                 } else {
@@ -337,13 +359,39 @@ namespace MCLauncher {
         }
 
         private bool VersionListFilter(object obj) {
-            Version v = obj as Version;
+            var v = obj as WPFDataTypes.Version;
             return (!v.IsBeta || UserPrefs.ShowBetas) && (v.IsInstalled || !UserPrefs.ShowInstalledOnly);
         }
 
         private void RewritePrefs() {
             File.WriteAllText(PREFS_PATH, JsonConvert.SerializeObject(UserPrefs));
         }
+
+        private void ChangeTheme(object sender, RoutedEventArgs e)
+        {
+            ThemesController.ThemeTypes? theme = null;
+            switch (int.Parse(((MenuItem)sender).Uid))
+            {
+                case 0:
+                    theme = ThemesController.ThemeTypes.Light;
+                    break;
+                case 1: 
+                    theme = ThemesController.ThemeTypes.ColourfulLight;
+                    break;
+                case 2:
+                    theme = ThemesController.ThemeTypes.Dark;
+                    break;
+                case 3: 
+                    theme = ThemesController.ThemeTypes.ColourfulDark; 
+                    break;
+            }
+            if (theme == null) return;
+            ThemesController.SetTheme((ThemesController.ThemeTypes) theme);
+            UserPrefs.Theme = ThemesController.GetThemeName((ThemesController.ThemeTypes) theme);
+            RewritePrefs();
+            e.Handled = true;
+        }
+
     }
 
     namespace WPFDataTypes {
