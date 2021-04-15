@@ -104,7 +104,7 @@ namespace MCLauncher {
                 return;
             _hasLaunchTask = true;
             Task.Run(async () => {
-                v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Launching);
+                v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Registering);
                 string gameDir = Path.GetFullPath(v.GameDirectory);
                 try {
                     await ReRegisterPackage(gameDir);
@@ -115,7 +115,7 @@ namespace MCLauncher {
                     v.StateChangeInfo = null;
                     return;
                 }
-
+                v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Launching);
                 try {
                     var pkg = await AppDiagnosticInfo.RequestInfoForPackageAsync(MINECRAFT_PACKAGE_FAMILY);
                     if (pkg.Count > 0)
@@ -432,6 +432,7 @@ namespace MCLauncher {
             Initializing,
             Downloading,
             Extracting,
+            Registering,
             Launching,
             Uninstalling
         };
@@ -462,6 +463,7 @@ namespace MCLauncher {
                         case VersionState.Initializing:
                         case VersionState.Extracting:
                         case VersionState.Uninstalling:
+                        case VersionState.Registering:
                         case VersionState.Launching:
                             return true;
                         default: return false;
@@ -487,6 +489,7 @@ namespace MCLauncher {
                         case VersionState.Downloading:
                             return "Downloading... " + (DownloadedBytes / 1024 / 1024) + "MiB/" + (TotalSize / 1024 / 1024) + "MiB";
                         case VersionState.Extracting: return "Extracting...";
+                        case VersionState.Registering: return "Registering package...";
                         case VersionState.Launching: return "Launching...";
                         case VersionState.Uninstalling: return "Uninstalling...";
                         default: return "Wtf is happening? ...";
