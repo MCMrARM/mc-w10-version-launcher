@@ -325,13 +325,13 @@ namespace MCLauncher {
         }
 
         private void ShowBetaVersionsCheck_Changed(object sender, RoutedEventArgs e) {
-            UserPrefs.ShowBetas = ShowBetasCheckbox.IsChecked ?? false;
+            UserPrefs.ShowBetas = ShowBetasCheckbox.IsChecked;
             CollectionViewSource.GetDefaultView(VersionList.ItemsSource).Refresh();
             RewritePrefs();
         }
 
         private void ShowInstalledOnlyCheck_Changed(object sender, RoutedEventArgs e) {
-            UserPrefs.ShowInstalledOnly = ShowInstalledVersionsOnlyCheckbox.IsChecked ?? false;
+            UserPrefs.ShowInstalledOnly = ShowInstalledVersionsOnlyCheckbox.IsChecked;
             CollectionViewSource.GetDefaultView(VersionList.ItemsSource).Refresh();
             RewritePrefs();
         }
