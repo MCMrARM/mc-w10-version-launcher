@@ -86,10 +86,17 @@ namespace MCLauncher {
                 var versionEntry = _versions.AddEntry(openFileDlg.SafeFileName, directory);
                 await Task.Run(() => {
                     versionEntry.StateChangeInfo = new VersionStateChangeInfo(VersionState.Extracting);
-                    ZipFile.ExtractToDirectory(openFileDlg.FileName, directory);
-                    versionEntry.StateChangeInfo = null;
+                    try {
+                        ZipFile.ExtractToDirectory(openFileDlg.FileName, directory);
+                    } catch (InvalidDataException ex) {
+                        Debug.WriteLine("Failed extracting appx " + openFileDlg.FileName + ": " + ex.ToString());
+                        MessageBox.Show("Failed to import appx " + openFileDlg.SafeFileName + ". It may be corrupted or not an appx file.\n\nExtraction error: " + ex.Message, "Import failure");
+                        return;
+                    } finally {
+                        versionEntry.StateChangeInfo = null;
+                    }
+                    MessageBox.Show("Successfully imported appx: " + openFileDlg.FileName);
                 });
-                MessageBox.Show("Successfully imported appx: " + openFileDlg.FileName);
             }
         }
 
