@@ -309,7 +309,12 @@ namespace MCLauncher {
                     ZipFile.ExtractToDirectory(dlPath, dirPath);
                     v.StateChangeInfo = null;
                     File.Delete(Path.Combine(dirPath, "AppxSignature.p7x"));
-                    File.Delete(dlPath);
+                    if (UserPrefs.DeleteAppxAfterDownload) {
+                        Debug.WriteLine("Deleting APPX to reduce disk usage");
+                        File.Delete(dlPath);
+                    } else {
+                        Debug.WriteLine("Not deleting APPX due to user preferences");
+                    }
                 } catch (Exception e) {
                     Debug.WriteLine("Extraction failed:\n" + e.ToString());
                     MessageBox.Show("Extraction failed:\n" + e.ToString());
@@ -347,6 +352,10 @@ namespace MCLauncher {
             UserPrefs.ShowInstalledOnly = ShowInstalledVersionsOnlyCheckbox.IsChecked;
             CollectionViewSource.GetDefaultView(VersionList.ItemsSource).Refresh();
             RewritePrefs();
+        }
+
+        private void DeleteAppxAfterDownloadCheck_Changed(object sender, RoutedEventArgs e) {
+            UserPrefs.DeleteAppxAfterDownload = DeleteAppxAfterDownloadOption.IsChecked;
         }
 
         private bool VersionListFilter(object obj) {
