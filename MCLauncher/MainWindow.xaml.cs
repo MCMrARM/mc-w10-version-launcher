@@ -71,6 +71,7 @@ namespace MCLauncher {
 
         private async void ImportButtonClicked(object sender, RoutedEventArgs e) {
             Microsoft.Win32.OpenFileDialog openFileDlg = new Microsoft.Win32.OpenFileDialog();
+            openFileDlg.Filter = "UWP App Package (*.appx)|*.appx|All Files|*.*";
             Nullable<bool> result = openFileDlg.ShowDialog();
             if (result == true) {
                 string directory = Path.Combine(IMPORTED_VERSIONS_PATH, openFileDlg.SafeFileName);
