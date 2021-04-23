@@ -66,6 +66,7 @@
         </Grid.RowDefinitions>
         <Menu Grid.Row="0" IsMainMenu="True" Background="Transparent">
             <MenuItem Header="_File">
+                <MenuItem Header="Open log file" Click="MenuItemOpenLogFileClicked" />
                 <MenuItem Header="_Import APPX file" Click="ImportButtonClicked" />
             </MenuItem>
             <MenuItem Header="_View">

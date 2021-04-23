@@ -344,6 +344,11 @@ namespace MCLauncher {
         private void RewritePrefs() {
             File.WriteAllText(PREFS_PATH, JsonConvert.SerializeObject(UserPrefs));
         }
+
+        private void MenuItemOpenLogFileClicked(object sender, RoutedEventArgs e)
+        {
+            Process.Start(@"Log.txt");
+        }
     }
 
     namespace WPFDataTypes {
