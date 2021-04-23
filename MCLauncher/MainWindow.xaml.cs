@@ -263,10 +263,15 @@ namespace MCLauncher {
                     try {
                         await _userVersionDownloaderLoginTask;
                         Debug.WriteLine("Authentication complete");
-                    } catch (Exception e) {
-                        v.StateChangeInfo = null;
+                    } catch (WUTokenHelper.WUTokenException e) {
                         Debug.WriteLine("Authentication failed:\n" + e.ToString());
-                        MessageBox.Show("Failed to authenticate. Please make sure your account is subscribed to the beta programme.\n\n" + e.ToString(), "Authentication failed");
+                        MessageBox.Show("Failed to authenticate because: " + e.Message + "\nPlease make sure your account is subscribed to the beta programme.\n\n" + e.ToString(), "Authentication failed");
+                        v.StateChangeInfo = null;
+                        return;
+                    } catch (Exception e) {
+                        Debug.WriteLine("Authentication failed:\n" + e.ToString());
+                        MessageBox.Show(e.ToString(), "Authentication failed");
+                        v.StateChangeInfo = null;
                         return;
                     }
                 }
