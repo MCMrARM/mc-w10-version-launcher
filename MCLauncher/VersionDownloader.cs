@@ -72,5 +72,7 @@ namespace MCLauncher {
 
         public delegate void DownloadProgress(long current, long? total);
 
+
+
     }
 }
