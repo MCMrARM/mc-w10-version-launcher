@@ -9,6 +9,11 @@ using System.Xml;
 using System.Xml.Linq;
 
 namespace MCLauncher {
+
+    class BadUpdateIdentityException: ArgumentException{
+        public BadUpdateIdentityException() : base("Bad updateIdentity") { }
+    }
+
     class VersionDownloader {
 
         private HttpClient client = new HttpClient();
@@ -66,7 +71,7 @@ namespace MCLauncher {
         public async Task Download(string updateIdentity, string revisionNumber, string destination, DownloadProgress progress, CancellationToken cancellationToken) {
             string link = await GetDownloadUrl(updateIdentity, revisionNumber);
             if (link == null)
-                throw new ArgumentException("Bad updateIdentity");
+                throw new BadUpdateIdentityException();
             Debug.WriteLine("Resolved download link: " + link);
             await DownloadFile(link, destination, progress, cancellationToken);
         }

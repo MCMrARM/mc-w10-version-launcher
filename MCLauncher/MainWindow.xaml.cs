@@ -286,6 +286,14 @@ namespace MCLauncher {
                         v.StateChangeInfo.DownloadedBytes = current;
                     }, cancelSource.Token);
                     Debug.WriteLine("Download complete");
+                } catch (BadUpdateIdentityException) {
+                    Debug.WriteLine("Download failed due to failure to fetch download URL");
+                    MessageBox.Show(
+                        "Unable to fetch download URL for version." +
+                        (v.IsBeta ? "\nFor beta versions, please make sure your account is subscribed to the Minecraft beta programme in the Xbox Insider Hub app." : "")
+                    );
+                    v.StateChangeInfo = null;
+                    return;
                 } catch (Exception e) {
                     Debug.WriteLine("Download failed:\n" + e.ToString());
                     if (!(e is TaskCanceledException))
