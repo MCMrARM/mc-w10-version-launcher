@@ -379,6 +379,25 @@ namespace MCLauncher {
         {
             Process.Start(@"Log.txt");
         }
+
+        private void MenuItemCleanupForMicrosoftStoreReinstallClicked(object sender, RoutedEventArgs e) {
+            var result = MessageBox.Show(
+                "Versions of Minecraft installed by the launcher will be uninstalled.\n" +
+                    "This will allow you to reinstall Minecraft from Microsoft Store. Your data (worlds, etc.) won't be removed.\n\n" +
+                    "Are you sure you want to continue?",
+                "Uninstall all versions",
+                MessageBoxButton.OKCancel
+            );
+            if (result == MessageBoxResult.OK) {
+                Debug.WriteLine("Starting uninstall of ALL versions!");
+                foreach (var version in _versions) {
+                    if (version.IsInstalled) {
+                        InvokeRemove(version);
+                    }
+                }
+                Debug.WriteLine("Scheduled uninstall of ALL versions.");
+            }
+        }
     }
 
     namespace WPFDataTypes {
