@@ -85,8 +85,9 @@ namespace MCLauncher {
                 }
 
                 var versionEntry = _versions.AddEntry(openFileDlg.SafeFileName, directory);
+                versionEntry.StateChangeInfo = new VersionStateChangeInfo(VersionState.Extracting);
+                CollectionViewSource.GetDefaultView(VersionList.ItemsSource).Refresh();
                 await Task.Run(() => {
-                    versionEntry.StateChangeInfo = new VersionStateChangeInfo(VersionState.Extracting);
                     try {
                         ZipFile.ExtractToDirectory(openFileDlg.FileName, directory);
                     } catch (InvalidDataException ex) {
@@ -368,7 +369,7 @@ namespace MCLauncher {
 
         private bool VersionListFilter(object obj) {
             Version v = obj as Version;
-            return (!v.IsBeta || UserPrefs.ShowBetas) && (v.IsInstalled || !UserPrefs.ShowInstalledOnly);
+            return (!v.IsBeta || UserPrefs.ShowBetas) && (v.IsInstalled || v.IsStateChanging || !UserPrefs.ShowInstalledOnly);
         }
 
         private void RewritePrefs() {
