@@ -109,10 +109,25 @@ namespace MCLauncher {
             if (result == true) {
                 string directory = Path.Combine(IMPORTED_VERSIONS_PATH, openFileDlg.SafeFileName);
                 if (Directory.Exists(directory)) {
-                    MessageBoxResult messageBoxResult = System.Windows.MessageBox.Show("A version with the same name was already imported. Do you want to delete it ?", "Delete Confirmation", System.Windows.MessageBoxButton.YesNo);
-                    if (messageBoxResult == MessageBoxResult.Yes) {
-                        Directory.Delete(directory, true);
-                    } else {
+                    var found = false;
+                    foreach (var version in _versions) {
+                        if (version.IsImported && version.GameDirectory == directory) {
+                            if (version.IsStateChanging) {
+                                MessageBox.Show("A version with the same name was already imported, and is currently being modified. Please wait a few moments and try again.", "Error");
+                                return;
+                            }
+                            MessageBoxResult messageBoxResult = System.Windows.MessageBox.Show("A version with the same name was already imported. Do you want to delete it ?", "Delete Confirmation", System.Windows.MessageBoxButton.YesNo);
+                            if (messageBoxResult == MessageBoxResult.Yes) {
+                                await Remove(version);
+                                found = true;
+                                break;
+                            } else {
+                                return;
+                            }
+                        }
+                    }
+                    if (!found) {
+                        MessageBox.Show("The destination path for importing already exists and doesn't contain a Minecraft installation known to the launcher. To avoid loss of data, importing was aborted. Please remove the files manually.", "Error");
                         return;
                     }
                 }
@@ -366,20 +381,22 @@ namespace MCLauncher {
             });
         }
 
+        private async Task Remove(Version v) {
+            v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Uninstalling);
+            await UnregisterPackage(Path.GetFullPath(v.GameDirectory));
+            Directory.Delete(v.GameDirectory, true);
+            v.StateChangeInfo = null;
+            if (v.IsImported) {
+                Dispatcher.Invoke(() => _versions.Remove(v));
+                Debug.WriteLine("Removed imported version " + v.DisplayName);
+            } else {
+                v.UpdateInstallStatus();
+                Debug.WriteLine("Removed release version " + v.DisplayName);
+            }
+        }
+
         private void InvokeRemove(Version v) {
-            Task.Run(async () => {
-                v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Uninstalling);
-                await UnregisterPackage(Path.GetFullPath(v.GameDirectory));
-                Directory.Delete(v.GameDirectory, true);
-                v.StateChangeInfo = null;
-                if (v.UUID == Version.UNKNOWN_UUID) {
-                    Dispatcher.Invoke(() => _versions.Remove(v));
-                    Debug.WriteLine("Removed imported version " + v.DisplayName);
-                } else {
-                    v.UpdateInstallStatus();
-                    Debug.WriteLine("Removed release version " + v.DisplayName);
-                }
-            });
+            Task.Run(async () => await Remove(v));
         }
 
         private void ShowInstalledVersionsOnlyCheckbox_Changed(object sender, RoutedEventArgs e) {
