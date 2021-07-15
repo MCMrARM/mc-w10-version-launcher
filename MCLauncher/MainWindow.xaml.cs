@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Input;
 
 namespace MCLauncher {
+    using System.Collections.Generic;
     using System.ComponentModel;
     using System.Diagnostics;
     using System.IO;
@@ -29,6 +30,9 @@ namespace MCLauncher {
 
         private VersionList _versions;
         public Preferences UserPrefs { get; }
+
+        private HashSet<CollectionViewSource> _versionListViews = new HashSet<CollectionViewSource>();
+
         private readonly VersionDownloader _anonVersionDownloader = new VersionDownloader();
         private readonly VersionDownloader _userVersionDownloader = new VersionDownloader();
         private readonly Task _userVersionDownloaderLoginTask;
@@ -36,9 +40,10 @@ namespace MCLauncher {
         private volatile bool _hasLaunchTask = false;
 
         public MainWindow() {
+            _versions = new VersionList("versions.json", IMPORTED_VERSIONS_PATH, this, VersionEntryPropertyChanged);
             InitializeComponent();
-            ShowBetasCheckbox.DataContext = this;
             ShowInstalledVersionsOnlyCheckbox.DataContext = this;
+
 
             if (File.Exists(PREFS_PATH)) {
                 UserPrefs = JsonConvert.DeserializeObject<Preferences>(File.ReadAllText(PREFS_PATH));
@@ -47,10 +52,34 @@ namespace MCLauncher {
                 RewritePrefs();
             }
 
-            _versions = new VersionList("versions.json", IMPORTED_VERSIONS_PATH, this);
-            VersionList.ItemsSource = _versions;
-            var view = CollectionViewSource.GetDefaultView(VersionList.ItemsSource) as CollectionView;
-            view.Filter = VersionListFilter;
+            var versionListViewRelease = Resources["versionListViewRelease"] as CollectionViewSource;
+            versionListViewRelease.Filter += new FilterEventHandler((object sender, FilterEventArgs e) => {
+                var v = e.Item as Version;
+                e.Accepted = !v.IsImported && !v.IsBeta && (v.IsInstalled || v.IsStateChanging || !(ShowInstalledVersionsOnlyCheckbox.IsChecked ?? false));
+            });
+            versionListViewRelease.Source = _versions;
+            ReleaseVersionList.DataContext = versionListViewRelease;
+            _versionListViews.Add(versionListViewRelease);
+
+            var versionListViewBeta = Resources["versionListViewBeta"] as CollectionViewSource;
+            versionListViewBeta.Filter += new FilterEventHandler((object sender, FilterEventArgs e) => {
+                var v = e.Item as Version;
+                e.Accepted = !v.IsImported && v.IsBeta && (v.IsInstalled || v.IsStateChanging || !(ShowInstalledVersionsOnlyCheckbox.IsChecked ?? false));
+            });
+            versionListViewBeta.Source = _versions;
+            BetaVersionList.DataContext = versionListViewBeta;
+            _versionListViews.Add(versionListViewBeta);
+
+            var versionListViewImported = Resources["versionListViewImported"] as CollectionViewSource;
+            versionListViewImported.Filter += new FilterEventHandler((object sender, FilterEventArgs e) => {
+                var v = e.Item as Version;
+                e.Accepted = v.IsImported;
+            });
+
+            versionListViewImported.Source = _versions;
+            ImportedVersionList.DataContext = versionListViewImported;
+            _versionListViews.Add(versionListViewImported);
+
             _userVersionDownloaderLoginTask = new Task(() => {
                 _userVersionDownloader.EnableUserAuthorization();
             });
@@ -67,6 +96,10 @@ namespace MCLauncher {
                 }
                 await _versions.LoadImported();
             });
+        }
+
+        private void VersionEntryPropertyChanged(object sender, PropertyChangedEventArgs e) {
+            RefreshLists();
         }
 
         private async void ImportButtonClicked(object sender, RoutedEventArgs e) {
@@ -86,7 +119,6 @@ namespace MCLauncher {
 
                 var versionEntry = _versions.AddEntry(openFileDlg.SafeFileName, directory);
                 versionEntry.StateChangeInfo = new VersionStateChangeInfo(VersionState.Extracting);
-                CollectionViewSource.GetDefaultView(VersionList.ItemsSource).Refresh();
                 await Task.Run(() => {
                     try {
                         ZipFile.ExtractToDirectory(openFileDlg.FileName, directory);
@@ -97,7 +129,6 @@ namespace MCLauncher {
                     } finally {
                         versionEntry.StateChangeInfo = null;
                     }
-                    MessageBox.Show("Successfully imported appx: " + openFileDlg.FileName);
                 });
             }
         }
@@ -351,25 +382,22 @@ namespace MCLauncher {
             });
         }
 
-        private void ShowBetaVersionsCheck_Changed(object sender, RoutedEventArgs e) {
-            UserPrefs.ShowBetas = ShowBetasCheckbox.IsChecked ?? false;
-            CollectionViewSource.GetDefaultView(VersionList.ItemsSource).Refresh();
+        private void ShowInstalledVersionsOnlyCheckbox_Changed(object sender, RoutedEventArgs e) {
+            UserPrefs.ShowInstalledOnly = ShowInstalledVersionsOnlyCheckbox.IsChecked ?? false;
+            RefreshLists();
             RewritePrefs();
         }
 
-        private void ShowInstalledOnlyCheck_Changed(object sender, RoutedEventArgs e) {
-            UserPrefs.ShowInstalledOnly = ShowInstalledVersionsOnlyCheckbox.IsChecked ?? false;
-            CollectionViewSource.GetDefaultView(VersionList.ItemsSource).Refresh();
-            RewritePrefs();
+        private void RefreshLists() {
+            Dispatcher.Invoke(() => {
+                foreach (var list in _versionListViews) {
+                    list.View.Refresh();
+                }
+            });
         }
 
         private void DeleteAppxAfterDownloadCheck_Changed(object sender, RoutedEventArgs e) {
             UserPrefs.DeleteAppxAfterDownload = DeleteAppxAfterDownloadOption.IsChecked;
-        }
-
-        private bool VersionListFilter(object obj) {
-            Version v = obj as Version;
-            return (!v.IsBeta || UserPrefs.ShowBetas) && (v.IsInstalled || v.IsStateChanging || !UserPrefs.ShowInstalledOnly);
         }
 
         private void RewritePrefs() {
@@ -436,19 +464,22 @@ namespace MCLauncher {
                 this.RemoveCommand = commands.RemoveCommand;
                 this.GameDirectory = "Minecraft-" + Name;
             }
-            public Version(string uuid, string name, bool isBeta, string directory, ICommonVersionCommands commands) {
-                this.UUID = uuid;
+            public Version(string name, string directory, ICommonVersionCommands commands) {
+                this.UUID = UNKNOWN_UUID;
                 this.Name = name;
-                this.IsBeta = isBeta;
+                this.IsBeta = false;
                 this.DownloadCommand = commands.DownloadCommand;
                 this.LaunchCommand = commands.LaunchCommand;
                 this.RemoveCommand = commands.RemoveCommand;
                 this.GameDirectory = directory;
+                this.IsImported = true;
             }
 
             public string UUID { get; set; }
             public string Name { get; set; }
             public bool IsBeta { get; set; }
+
+            public bool IsImported { get; private set; }
 
             public string GameDirectory { get; set; }
 

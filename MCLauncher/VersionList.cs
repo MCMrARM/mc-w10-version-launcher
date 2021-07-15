@@ -2,13 +2,15 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace MCLauncher {
-    class VersionList : ObservableCollection<WPFDataTypes.Version> {
+    public class VersionList : ObservableCollection<WPFDataTypes.Version> {
 
         private readonly string _cacheFile;
         private readonly string _importedDirectory;
@@ -16,10 +18,28 @@ namespace MCLauncher {
         private readonly HttpClient _client = new HttpClient();
         HashSet<string> dbVersions = new HashSet<string>();
 
-        public VersionList(string cacheFile, string importedDirectory, WPFDataTypes.ICommonVersionCommands commands) {
+        private PropertyChangedEventHandler _versionPropertyChangedHandler;
+        public VersionList(string cacheFile, string importedDirectory, WPFDataTypes.ICommonVersionCommands commands, PropertyChangedEventHandler versionPropertyChangedEventHandler) {
             _cacheFile = cacheFile;
             _importedDirectory = importedDirectory;
             _commands = commands;
+            _versionPropertyChangedHandler = versionPropertyChangedEventHandler;
+            CollectionChanged += versionListOnCollectionChanged;
+        }
+
+        private void versionListOnCollectionChanged(object sender, NotifyCollectionChangedEventArgs e) {
+            if (e.OldItems != null) {
+                foreach (var item in e.OldItems) {
+                    var version = item as WPFDataTypes.Version;
+                    version.PropertyChanged -= _versionPropertyChangedHandler;
+                }
+            }
+            if (e.NewItems != null) {
+                foreach (var item in e.NewItems) {
+                    var version = item as WPFDataTypes.Version;
+                    version.PropertyChanged += _versionPropertyChangedHandler;
+                }
+            }
         }
 
         private void ParseList(JArray data) {
@@ -57,7 +77,7 @@ namespace MCLauncher {
         }
 
         public WPFDataTypes.Version AddEntry(string name, string path) {
-            var result = new WPFDataTypes.Version(WPFDataTypes.Version.UNKNOWN_UUID, name.Replace(".appx", ""), false, path, _commands);
+            var result = new WPFDataTypes.Version(name.Replace(".appx", ""), path, _commands);
             Add(result);
             return result;
         }
