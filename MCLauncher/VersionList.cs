@@ -42,12 +42,12 @@ namespace MCLauncher {
             }
         }
 
-        private void ParseList(JArray data) {
+        private void ParseList(JArray data, bool isCache) {
             Clear();
             // ([name, uuid, isBeta])[]
             foreach (JArray o in data.AsEnumerable().Reverse()) {
-                dbVersions.Add(o[0].Value<string>());
-                Add(new WPFDataTypes.Version(o[1].Value<string>(), o[0].Value<string>(), o[2].Value<int>() == 1, _commands));
+                bool isNew = dbVersions.Add(o[0].Value<string>()) && !isCache;
+                Add(new WPFDataTypes.Version(o[1].Value<string>(), o[0].Value<string>(), o[2].Value<int>() == 1, isNew, _commands));
             }
         }
 
@@ -62,7 +62,7 @@ namespace MCLauncher {
             try {
                 using (var reader = File.OpenText(_cacheFile)) {
                     var data = await reader.ReadToEndAsync();
-                    ParseList(JArray.Parse(data));
+                    ParseList(JArray.Parse(data), true);
                 }
             } catch (FileNotFoundException) { // ignore
             }
@@ -73,7 +73,7 @@ namespace MCLauncher {
             resp.EnsureSuccessStatusCode();
             var data = await resp.Content.ReadAsStringAsync();
             File.WriteAllText(_cacheFile, data);
-            ParseList(JArray.Parse(data));
+            ParseList(JArray.Parse(data), false);
         }
 
         public WPFDataTypes.Version AddEntry(string name, string path) {

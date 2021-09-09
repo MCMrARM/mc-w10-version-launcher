@@ -302,6 +302,7 @@ namespace MCLauncher {
 
         private void InvokeDownload(Version v) {
             CancellationTokenSource cancelSource = new CancellationTokenSource();
+            v.IsNew = false;
             v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Initializing);
             v.StateChangeInfo.CancelCommand = new RelayCommand((o) => cancelSource.Cancel());
 
@@ -475,10 +476,11 @@ namespace MCLauncher {
         public class Version : NotifyPropertyChangedBase {
             public static readonly string UNKNOWN_UUID = "UNKNOWN";
 
-            public Version(string uuid, string name, bool isBeta, ICommonVersionCommands commands) {
+            public Version(string uuid, string name, bool isBeta, bool isNew, ICommonVersionCommands commands) {
                 this.UUID = uuid;
                 this.Name = name;
                 this.IsBeta = isBeta;
+                this.IsNew = isNew;
                 this.DownloadCommand = commands.DownloadCommand;
                 this.LaunchCommand = commands.LaunchCommand;
                 this.RemoveCommand = commands.RemoveCommand;
@@ -498,7 +500,13 @@ namespace MCLauncher {
             public string UUID { get; set; }
             public string Name { get; set; }
             public bool IsBeta { get; set; }
-
+            public bool IsNew {
+                get { return _isNew; }
+                set {
+                    _isNew = value;
+                    OnPropertyChanged("IsNew");
+                }
+            }
             public bool IsImported { get; private set; }
 
             public string GameDirectory { get; set; }
@@ -507,7 +515,7 @@ namespace MCLauncher {
 
             public string DisplayName {
                 get {
-                    return Name + (IsBeta ? " (beta)" : "");
+                    return Name + (IsBeta ? " (beta)" : "") + (IsNew ? " (NEW!)" : "");
                 }
             }
             public string DisplayInstallStatus {
@@ -521,6 +529,7 @@ namespace MCLauncher {
             public ICommand RemoveCommand { get; set; }
 
             private VersionStateChangeInfo _stateChangeInfo;
+            private bool _isNew = false;
             public VersionStateChangeInfo StateChangeInfo {
                 get { return _stateChangeInfo; }
                 set { _stateChangeInfo = value; OnPropertyChanged("StateChangeInfo"); OnPropertyChanged("IsStateChanging"); }
