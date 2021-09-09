@@ -421,8 +421,7 @@ namespace MCLauncher {
             File.WriteAllText(PREFS_PATH, JsonConvert.SerializeObject(UserPrefs));
         }
 
-        private void MenuItemOpenLogFileClicked(object sender, RoutedEventArgs e)
-        {
+        private void MenuItemOpenLogFileClicked(object sender, RoutedEventArgs e) {
             Process.Start(@"Log.txt");
         }
 
@@ -590,8 +589,7 @@ namespace MCLauncher {
 
             public string DisplayStatus {
                 get {
-                    switch(_versionState)
-                    {
+                    switch (_versionState) {
                         case VersionState.Initializing: return "Preparing...";
                         case VersionState.Downloading:
                             return "Downloading... " + (DownloadedBytes / 1024 / 1024) + "MiB/" + (TotalSize / 1024 / 1024) + "MiB";
