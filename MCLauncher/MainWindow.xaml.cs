@@ -426,6 +426,10 @@ namespace MCLauncher {
             Process.Start(@"Log.txt");
         }
 
+        private void MenuItemOpenDataDirClicked(object sender, RoutedEventArgs e) {
+            Process.Start(@"explorer.exe", Directory.GetCurrentDirectory());
+        }
+
         private void MenuItemCleanupForMicrosoftStoreReinstallClicked(object sender, RoutedEventArgs e) {
             var result = MessageBox.Show(
                 "Versions of Minecraft installed by the launcher will be uninstalled.\n" +

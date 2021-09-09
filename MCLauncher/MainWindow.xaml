@@ -99,6 +99,7 @@
         <Menu Grid.Row="0" IsMainMenu="True" Background="Transparent">
             <MenuItem Header="_File">
                 <MenuItem Header="Open log file" Click="MenuItemOpenLogFileClicked" />
+                <MenuItem Header="Open launcher data folder in Explorer" Click="MenuItemOpenDataDirClicked"/>
                 <MenuItem Header="_Import APPX file" Click="ImportButtonClicked" />
             </MenuItem>
             <MenuItem Header="_Options">
