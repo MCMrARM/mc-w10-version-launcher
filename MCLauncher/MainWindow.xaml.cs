@@ -84,31 +84,35 @@ namespace MCLauncher {
             _userVersionDownloaderLoginTask = new Task(() => {
                 _userVersionDownloader.EnableUserAuthorization();
             });
-            Dispatcher.Invoke(async () => {
-                LoadingProgressLabel.Content = "Loading versions from cache";
-                LoadingProgressBar.Value = 1;
-                try {
-                    await _versions.LoadFromCache();
-                } catch (Exception e) {
-                    Debug.WriteLine("List cache load failed:\n" + e.ToString());
-                }
+            Dispatcher.Invoke(LoadVersionList);
+        }
 
-                LoadingProgressLabel.Content = "Updating versions list from " + VERSIONS_API;
-                LoadingProgressBar.Value = 2;
-                try {
-                    await _versions.DownloadList();
-                } catch (Exception e) {
-                    Debug.WriteLine("List download failed:\n" + e.ToString());
-                    MessageBox.Show("Failed to update version list from the internet. Some new versions might be missing.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+        private async void LoadVersionList() {
+            LoadingProgressLabel.Content = "Loading versions from cache";
+            LoadingProgressBar.Value = 1;
 
-                LoadingProgressLabel.Content = "Loading imported versions";
-                LoadingProgressBar.Value = 3;
-                await _versions.LoadImported();
+            LoadingProgressGrid.Visibility = Visibility.Visible;
 
-                LoadingProgressGrid.Visibility = Visibility.Collapsed;
+            try {
+                await _versions.LoadFromCache();
+            } catch (Exception e) {
+                Debug.WriteLine("List cache load failed:\n" + e.ToString());
+            }
 
-            });
+            LoadingProgressLabel.Content = "Updating versions list from " + VERSIONS_API;
+            LoadingProgressBar.Value = 2;
+            try {
+                await _versions.DownloadList();
+            } catch (Exception e) {
+                Debug.WriteLine("List download failed:\n" + e.ToString());
+                MessageBox.Show("Failed to update version list from the internet. Some new versions might be missing.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            LoadingProgressLabel.Content = "Loading imported versions";
+            LoadingProgressBar.Value = 3;
+            await _versions.LoadImported();
+
+            LoadingProgressGrid.Visibility = Visibility.Collapsed;
         }
 
         private void VersionEntryPropertyChanged(object sender, PropertyChangedEventArgs e) {
@@ -460,6 +464,10 @@ namespace MCLauncher {
                 }
                 Debug.WriteLine("Scheduled uninstall of ALL versions.");
             }
+        }
+
+        private void MenuItemRefreshVersionListClicked(object sender, RoutedEventArgs e) {
+            Dispatcher.Invoke(LoadVersionList);
         }
     }
 
