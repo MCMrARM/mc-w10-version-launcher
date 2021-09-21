@@ -14,14 +14,16 @@ namespace MCLauncher {
 
         private readonly string _cacheFile;
         private readonly string _importedDirectory;
+        private readonly string _versionsApi;
         private readonly WPFDataTypes.ICommonVersionCommands _commands;
         private readonly HttpClient _client = new HttpClient();
         HashSet<string> dbVersions = new HashSet<string>();
 
         private PropertyChangedEventHandler _versionPropertyChangedHandler;
-        public VersionList(string cacheFile, string importedDirectory, WPFDataTypes.ICommonVersionCommands commands, PropertyChangedEventHandler versionPropertyChangedEventHandler) {
+        public VersionList(string cacheFile, string importedDirectory, string versionsApi, WPFDataTypes.ICommonVersionCommands commands, PropertyChangedEventHandler versionPropertyChangedEventHandler) {
             _cacheFile = cacheFile;
             _importedDirectory = importedDirectory;
+            _versionsApi = versionsApi;
             _commands = commands;
             _versionPropertyChangedHandler = versionPropertyChangedEventHandler;
             CollectionChanged += versionListOnCollectionChanged;
@@ -69,7 +71,7 @@ namespace MCLauncher {
         }
 
         public async Task DownloadList() {
-            var resp = await _client.GetAsync("https://mrarm.io/r/w10-vdb");
+            var resp = await _client.GetAsync(_versionsApi);
             resp.EnsureSuccessStatusCode();
             var data = await resp.Content.ReadAsStringAsync();
             File.WriteAllText(_cacheFile, data);

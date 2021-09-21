@@ -27,6 +27,7 @@ namespace MCLauncher {
         private static readonly string MINECRAFT_PACKAGE_FAMILY = "Microsoft.MinecraftUWP_8wekyb3d8bbwe";
         private static readonly string PREFS_PATH = @"preferences.json";
         private static readonly string IMPORTED_VERSIONS_PATH = @"imported_versions";
+        private static readonly string VERSIONS_API = "https://mrarm.io/r/w10-vdb";
 
         private VersionList _versions;
         public Preferences UserPrefs { get; }
@@ -40,7 +41,7 @@ namespace MCLauncher {
         private volatile bool _hasLaunchTask = false;
 
         public MainWindow() {
-            _versions = new VersionList("versions.json", IMPORTED_VERSIONS_PATH, this, VersionEntryPropertyChanged);
+            _versions = new VersionList("versions.json", IMPORTED_VERSIONS_PATH, VERSIONS_API, this, VersionEntryPropertyChanged);
             InitializeComponent();
             ShowInstalledVersionsOnlyCheckbox.DataContext = this;
 
