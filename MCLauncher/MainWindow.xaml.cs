@@ -94,6 +94,7 @@ namespace MCLauncher {
                     await _versions.DownloadList();
                 } catch (Exception e) {
                     Debug.WriteLine("List download failed:\n" + e.ToString());
+                    MessageBox.Show("Failed to update version list from the internet. Some new versions might be missing.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
                 await _versions.LoadImported();
             });
