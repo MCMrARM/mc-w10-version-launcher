@@ -54,7 +54,7 @@ namespace MCLauncher {
         }
 
         public async Task LoadImported() {
-            string[] subdirectoryEntries = await Task.Run(() => Directory.GetDirectories(_importedDirectory));
+            string[] subdirectoryEntries = await Task.Run(() => Directory.Exists(_importedDirectory) ? Directory.GetDirectories(_importedDirectory) : Array.Empty<string>());
             foreach (string subdirectory in subdirectoryEntries) {
                 AddEntry(Path.GetFileName(subdirectory), subdirectory);
             }
