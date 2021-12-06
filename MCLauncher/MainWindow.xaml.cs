@@ -440,7 +440,7 @@ namespace MCLauncher {
         }
 
         private void MenuItemOpenLogFileClicked(object sender, RoutedEventArgs e) {
-            if (!File.Exists(Directory.GetCurrentDirectory() + "\\Log.txt")) {
+            if (!File.Exists(@"Log.txt")) {
                 MessageBox.Show("Log file not found", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             } else 
                 Process.Start(@"Log.txt");
