@@ -440,7 +440,13 @@ namespace MCLauncher {
         }
 
         private void MenuItemOpenLogFileClicked(object sender, RoutedEventArgs e) {
-            Process.Start(@"Log.txt");
+            try
+            {
+              Process.Start(@"Log.txt");
+            } catch (Exception failed)
+            {
+                var result = MessageBox.Show(failed.Message);
+            }
         }
 
         private void MenuItemOpenDataDirClicked(object sender, RoutedEventArgs e) {
