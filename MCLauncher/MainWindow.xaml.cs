@@ -445,7 +445,7 @@ namespace MCLauncher {
               Process.Start(@"Log.txt");
             } catch (Exception failed)
             {
-                var result = MessageBox.Show(failed.Message);
+              var result = MessageBox.Show(failed.Message);
             }
         }
 
