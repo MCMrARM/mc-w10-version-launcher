@@ -7,6 +7,18 @@
         mc:Ignorable="d"
         Title="Minecraft Version Manager" Height="450" Width="800">
     <Window.Resources>
+        <CollectionViewSource
+            x:Key="versionListViewRelease"
+            IsLiveFilteringRequested="True"
+        />
+        <CollectionViewSource
+            x:Key="versionListViewBeta"
+            IsLiveFilteringRequested="True"
+        />
+        <CollectionViewSource
+            x:Key="versionListViewImported"
+            IsLiveFilteringRequested="True"
+        />
         <DataTemplate x:Key="templateVersionNotInstalled" DataType="{x:Type local:Version}">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -58,37 +70,71 @@
                 <Button Grid.Row="2" Grid.Column="1" Content="X" Width="20" Margin="10 0 0 0" Command="{Binding StateChangeInfo.CancelCommand}" />
             </Grid>
         </DataTemplate>
+        <ControlTemplate x:Key="templateVersionList" TargetType="ContentControl">
+            <ListBox ItemsSource="{Binding}" HorizontalContentAlignment="Stretch">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <ContentControl x:Name="control" Content="{Binding}" ContentTemplate="{StaticResource templateVersionNotInstalled}" Background="LightBlue"/>
+
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsInstalled}" Value="True">
+                                <Setter TargetName="control" Property="ContentTemplate" Value="{StaticResource templateVersionInstalled}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsStateChanging}" Value="True">
+                                <Setter TargetName="control" Property="ContentTemplate" Value="{StaticResource templateVersionDownloading}"/>
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </ControlTemplate>
     </Window.Resources>
-    <Grid Margin="10">
+    <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <ListBox Name="VersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" ItemsSource="{Binding}" HorizontalContentAlignment="Stretch" Grid.Row="0" Margin="0,0,0,10">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <ContentControl x:Name="control" Content="{Binding}" ContentTemplate="{StaticResource templateVersionNotInstalled}"/>
+        <Menu Grid.Row="0" IsMainMenu="True" Background="Transparent">
+            <MenuItem Header="_File">
+                <MenuItem Header="Open log file" Click="MenuItemOpenLogFileClicked" />
+                <MenuItem Header="Open launcher data folder in Explorer" Click="MenuItemOpenDataDirClicked"/>
+                <MenuItem Header="_Import APPX file" Click="ImportButtonClicked" />
+            </MenuItem>
+            <MenuItem Header="_Options">
+                <MenuItem Header="Delete APPX after download to save space" IsCheckable="True" Name="DeleteAppxAfterDownloadOption" Checked="DeleteAppxAfterDownloadCheck_Changed" Unchecked="DeleteAppxAfterDownloadCheck_Changed" IsChecked="{Binding UserPrefs.DeleteAppxAfterDownload }" />
+                <MenuItem Header="Uninstall all versions" Name="CleanupForMicrosoftStoreReinstall" Click="MenuItemCleanupForMicrosoftStoreReinstallClicked" />
+                <MenuItem Header="Refresh version list" Name="RefreshVersionList" Click="MenuItemRefreshVersionListClicked" />
+            </MenuItem>
+        </Menu>
+        <TabControl Grid.Row="1" Margin="0,5,0,0" BorderThickness="0,1,0,0" Padding="0" Width="Auto">
+            <TabItem Header="Release">
+                <ContentControl x:Name="ReleaseVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
+            </TabItem>
+            <TabItem Header="Beta">
+                <ContentControl x:Name="BetaVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
+            </TabItem>
+            <TabItem Header="Imported">
+                <ContentControl x:Name="ImportedVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
+            </TabItem>
+        </TabControl>
 
-                    <DataTemplate.Triggers>
-                        <DataTrigger Binding="{Binding IsInstalled}" Value="True">
-                            <Setter TargetName="control" Property="ContentTemplate" Value="{StaticResource templateVersionInstalled}"/>
-                        </DataTrigger>
-                        <DataTrigger Binding="{Binding IsStateChanging}" Value="True">
-                            <Setter TargetName="control" Property="ContentTemplate" Value="{StaticResource templateVersionDownloading}"/>
-                        </DataTrigger>
-                    </DataTemplate.Triggers>
-
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-        <Grid Grid.Row="1" VerticalAlignment="Center" Margin="0,5,0,5">
+        <Grid Grid.Row="2" VerticalAlignment="Center" Margin="5,5,5,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <CheckBox Grid.Row="0" Grid.Column="0" Name="ShowBetasCheckbox" Content="Show beta versions" Checked="ShowBetaVersionsCheck_Changed" Unchecked="ShowBetaVersionsCheck_Changed" IsChecked="{Binding UserPrefs.ShowBetas }" />
-            <CheckBox Grid.Row="0" Grid.Column="1" Margin="15,0,0,0" Name="ShowInstalledVersionsOnlyCheckbox" Content="Show installed versions only" Checked="ShowInstalledOnlyCheck_Changed" Unchecked="ShowInstalledOnlyCheck_Changed" IsChecked="{Binding UserPrefs.ShowInstalledOnly }" />
+            <CheckBox Grid.Row="0" Grid.Column="0" Name="ShowInstalledVersionsOnlyCheckbox" Content="Show installed versions only" Checked="ShowInstalledVersionsOnlyCheckbox_Changed" Unchecked="ShowInstalledVersionsOnlyCheckbox_Changed" IsChecked="{Binding UserPrefs.ShowInstalledOnly }" />
+            <Grid Name="LoadingProgressGrid" Grid.Row="0" Grid.Column="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Label Grid.Row="0" Grid.Column="0" Name="LoadingProgressLabel" Content="Nothing" Padding="0,0,0,0"/>
+                <ProgressBar Grid.Row="0" Grid.Column="1" Name="LoadingProgressBar" Width="100" Margin="5,0,0,0" Maximum="3" Value="2"/>
+            </Grid>
         </Grid>
-
     </Grid>
 </Window>

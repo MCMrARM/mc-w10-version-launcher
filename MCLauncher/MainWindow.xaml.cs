@@ -1,11 +1,11 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 
 namespace MCLauncher {
+    using System.Collections.Generic;
     using System.ComponentModel;
     using System.Diagnostics;
     using System.IO;
@@ -26,9 +26,14 @@ namespace MCLauncher {
 
         private static readonly string MINECRAFT_PACKAGE_FAMILY = "Microsoft.MinecraftUWP_8wekyb3d8bbwe";
         private static readonly string PREFS_PATH = @"preferences.json";
+        private static readonly string IMPORTED_VERSIONS_PATH = @"imported_versions";
+        private static readonly string VERSIONS_API = "https://mrarm.io/r/w10-vdb";
 
         private VersionList _versions;
         public Preferences UserPrefs { get; }
+
+        private HashSet<CollectionViewSource> _versionListViews = new HashSet<CollectionViewSource>();
+
         private readonly VersionDownloader _anonVersionDownloader = new VersionDownloader();
         private readonly VersionDownloader _userVersionDownloader = new VersionDownloader();
         private readonly Task _userVersionDownloaderLoginTask;
@@ -36,9 +41,10 @@ namespace MCLauncher {
         private volatile bool _hasLaunchTask = false;
 
         public MainWindow() {
+            _versions = new VersionList("versions.json", IMPORTED_VERSIONS_PATH, VERSIONS_API, this, VersionEntryPropertyChanged);
             InitializeComponent();
-            ShowBetasCheckbox.DataContext = this;
             ShowInstalledVersionsOnlyCheckbox.DataContext = this;
+
 
             if (File.Exists(PREFS_PATH)) {
                 UserPrefs = JsonConvert.DeserializeObject<Preferences>(File.ReadAllText(PREFS_PATH));
@@ -47,25 +53,116 @@ namespace MCLauncher {
                 RewritePrefs();
             }
 
-            _versions = new VersionList("versions.json", this);
-            VersionList.ItemsSource = _versions;
-            var view = CollectionViewSource.GetDefaultView(VersionList.ItemsSource) as CollectionView;
-            view.Filter = VersionListFilter;
+            var versionListViewRelease = Resources["versionListViewRelease"] as CollectionViewSource;
+            versionListViewRelease.Filter += new FilterEventHandler((object sender, FilterEventArgs e) => {
+                var v = e.Item as Version;
+                e.Accepted = !v.IsImported && !v.IsBeta && (v.IsInstalled || v.IsStateChanging || !(ShowInstalledVersionsOnlyCheckbox.IsChecked ?? false));
+            });
+            versionListViewRelease.Source = _versions;
+            ReleaseVersionList.DataContext = versionListViewRelease;
+            _versionListViews.Add(versionListViewRelease);
+
+            var versionListViewBeta = Resources["versionListViewBeta"] as CollectionViewSource;
+            versionListViewBeta.Filter += new FilterEventHandler((object sender, FilterEventArgs e) => {
+                var v = e.Item as Version;
+                e.Accepted = !v.IsImported && v.IsBeta && (v.IsInstalled || v.IsStateChanging || !(ShowInstalledVersionsOnlyCheckbox.IsChecked ?? false));
+            });
+            versionListViewBeta.Source = _versions;
+            BetaVersionList.DataContext = versionListViewBeta;
+            _versionListViews.Add(versionListViewBeta);
+
+            var versionListViewImported = Resources["versionListViewImported"] as CollectionViewSource;
+            versionListViewImported.Filter += new FilterEventHandler((object sender, FilterEventArgs e) => {
+                var v = e.Item as Version;
+                e.Accepted = v.IsImported;
+            });
+
+            versionListViewImported.Source = _versions;
+            ImportedVersionList.DataContext = versionListViewImported;
+            _versionListViews.Add(versionListViewImported);
+
             _userVersionDownloaderLoginTask = new Task(() => {
                 _userVersionDownloader.EnableUserAuthorization();
             });
-            Dispatcher.Invoke(async () => {
-                try {
-                    await _versions.LoadFromCache();
-                } catch (Exception e) {
-                    Debug.WriteLine("List cache load failed:\n" + e.ToString());
+            Dispatcher.Invoke(LoadVersionList);
+        }
+
+        private async void LoadVersionList() {
+            LoadingProgressLabel.Content = "Loading versions from cache";
+            LoadingProgressBar.Value = 1;
+
+            LoadingProgressGrid.Visibility = Visibility.Visible;
+
+            try {
+                await _versions.LoadFromCache();
+            } catch (Exception e) {
+                Debug.WriteLine("List cache load failed:\n" + e.ToString());
+            }
+
+            LoadingProgressLabel.Content = "Updating versions list from " + VERSIONS_API;
+            LoadingProgressBar.Value = 2;
+            try {
+                await _versions.DownloadList();
+            } catch (Exception e) {
+                Debug.WriteLine("List download failed:\n" + e.ToString());
+                MessageBox.Show("Failed to update version list from the internet. Some new versions might be missing.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            LoadingProgressLabel.Content = "Loading imported versions";
+            LoadingProgressBar.Value = 3;
+            await _versions.LoadImported();
+
+            LoadingProgressGrid.Visibility = Visibility.Collapsed;
+        }
+
+        private void VersionEntryPropertyChanged(object sender, PropertyChangedEventArgs e) {
+            RefreshLists();
+        }
+
+        private async void ImportButtonClicked(object sender, RoutedEventArgs e) {
+            Microsoft.Win32.OpenFileDialog openFileDlg = new Microsoft.Win32.OpenFileDialog();
+            openFileDlg.Filter = "UWP App Package (*.appx)|*.appx|All Files|*.*";
+            Nullable<bool> result = openFileDlg.ShowDialog();
+            if (result == true) {
+                string directory = Path.Combine(IMPORTED_VERSIONS_PATH, openFileDlg.SafeFileName);
+                if (Directory.Exists(directory)) {
+                    var found = false;
+                    foreach (var version in _versions) {
+                        if (version.IsImported && version.GameDirectory == directory) {
+                            if (version.IsStateChanging) {
+                                MessageBox.Show("A version with the same name was already imported, and is currently being modified. Please wait a few moments and try again.", "Error");
+                                return;
+                            }
+                            MessageBoxResult messageBoxResult = System.Windows.MessageBox.Show("A version with the same name was already imported. Do you want to delete it ?", "Delete Confirmation", System.Windows.MessageBoxButton.YesNo);
+                            if (messageBoxResult == MessageBoxResult.Yes) {
+                                await Remove(version);
+                                found = true;
+                                break;
+                            } else {
+                                return;
+                            }
+                        }
+                    }
+                    if (!found) {
+                        MessageBox.Show("The destination path for importing already exists and doesn't contain a Minecraft installation known to the launcher. To avoid loss of data, importing was aborted. Please remove the files manually.", "Error");
+                        return;
+                    }
                 }
-                try {
-                    await _versions.DownloadList();
-                } catch (Exception e) {
-                    Debug.WriteLine("List download failed:\n" + e.ToString());
-                }
-            });
+
+                var versionEntry = _versions.AddEntry(openFileDlg.SafeFileName, directory);
+                versionEntry.StateChangeInfo = new VersionStateChangeInfo(VersionState.Extracting);
+                await Task.Run(() => {
+                    try {
+                        ZipFile.ExtractToDirectory(openFileDlg.FileName, directory);
+                    } catch (InvalidDataException ex) {
+                        Debug.WriteLine("Failed extracting appx " + openFileDlg.FileName + ": " + ex.ToString());
+                        MessageBox.Show("Failed to import appx " + openFileDlg.SafeFileName + ". It may be corrupted or not an appx file.\n\nExtraction error: " + ex.Message, "Import failure");
+                        return;
+                    } finally {
+                        versionEntry.StateChangeInfo = null;
+                    }
+                });
+            }
         }
 
         public ICommand LaunchCommand => new RelayCommand((v) => InvokeLaunch((Version)v));
@@ -79,8 +176,7 @@ namespace MCLauncher {
                 return;
             _hasLaunchTask = true;
             Task.Run(async () => {
-                v.StateChangeInfo = new VersionStateChangeInfo();
-                v.StateChangeInfo.IsLaunching = true;
+                v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Registering);
                 string gameDir = Path.GetFullPath(v.GameDirectory);
                 try {
                     await ReRegisterPackage(gameDir);
@@ -91,7 +187,7 @@ namespace MCLauncher {
                     v.StateChangeInfo = null;
                     return;
                 }
-
+                v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Launching);
                 try {
                     var pkg = await AppDiagnosticInfo.RequestInfoForPackageAsync(MINECRAFT_PACKAGE_FAMILY);
                     if (pkg.Count > 0)
@@ -223,8 +319,8 @@ namespace MCLauncher {
 
         private void InvokeDownload(Version v) {
             CancellationTokenSource cancelSource = new CancellationTokenSource();
-            v.StateChangeInfo = new VersionStateChangeInfo();
-            v.StateChangeInfo.IsInitializing = true;
+            v.IsNew = false;
+            v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Initializing);
             v.StateChangeInfo.CancelCommand = new RelayCommand((o) => cancelSource.Cancel());
 
             Debug.WriteLine("Download start");
@@ -240,24 +336,37 @@ namespace MCLauncher {
                     try {
                         await _userVersionDownloaderLoginTask;
                         Debug.WriteLine("Authentication complete");
-                    } catch (Exception e) {
-                        v.StateChangeInfo = null;
+                    } catch (WUTokenHelper.WUTokenException e) {
                         Debug.WriteLine("Authentication failed:\n" + e.ToString());
-                        MessageBox.Show("Failed to authenticate. Please make sure your account is subscribed to the beta programme.\n\n" + e.ToString(), "Authentication failed");
+                        MessageBox.Show("Failed to authenticate because: " + e.Message + "\nPlease make sure your account is subscribed to the beta programme.\n\n" + e.ToString(), "Authentication failed");
+                        v.StateChangeInfo = null;
+                        return;
+                    } catch (Exception e) {
+                        Debug.WriteLine("Authentication failed:\n" + e.ToString());
+                        MessageBox.Show(e.ToString(), "Authentication failed");
+                        v.StateChangeInfo = null;
                         return;
                     }
                 }
                 try {
                     await downloader.Download(v.UUID, "1", dlPath, (current, total) => {
-                        if (v.StateChangeInfo.IsInitializing) {
+                        if (v.StateChangeInfo.VersionState != VersionState.Downloading) {
                             Debug.WriteLine("Actual download started");
-                            v.StateChangeInfo.IsInitializing = false;
+                            v.StateChangeInfo.VersionState = VersionState.Downloading;
                             if (total.HasValue)
                                 v.StateChangeInfo.TotalSize = total.Value;
                         }
                         v.StateChangeInfo.DownloadedBytes = current;
                     }, cancelSource.Token);
                     Debug.WriteLine("Download complete");
+                } catch (BadUpdateIdentityException) {
+                    Debug.WriteLine("Download failed due to failure to fetch download URL");
+                    MessageBox.Show(
+                        "Unable to fetch download URL for version." +
+                        (v.IsBeta ? "\nFor beta versions, please make sure your account is subscribed to the Minecraft beta programme in the Xbox Insider Hub app." : "")
+                    );
+                    v.StateChangeInfo = null;
+                    return;
                 } catch (Exception e) {
                     Debug.WriteLine("Download failed:\n" + e.ToString());
                     if (!(e is TaskCanceledException))
@@ -266,13 +375,19 @@ namespace MCLauncher {
                     return;
                 }
                 try {
-                    v.StateChangeInfo.IsExtracting = true;
+                    v.StateChangeInfo.VersionState = VersionState.Extracting;
                     string dirPath = v.GameDirectory;
                     if (Directory.Exists(dirPath))
                         Directory.Delete(dirPath, true);
                     ZipFile.ExtractToDirectory(dlPath, dirPath);
                     v.StateChangeInfo = null;
                     File.Delete(Path.Combine(dirPath, "AppxSignature.p7x"));
+                    if (UserPrefs.DeleteAppxAfterDownload) {
+                        Debug.WriteLine("Deleting APPX to reduce disk usage");
+                        File.Delete(dlPath);
+                    } else {
+                        Debug.WriteLine("Not deleting APPX due to user preferences");
+                    }
                 } catch (Exception e) {
                     Debug.WriteLine("Extraction failed:\n" + e.ToString());
                     MessageBox.Show("Extraction failed:\n" + e.ToString());
@@ -284,36 +399,78 @@ namespace MCLauncher {
             });
         }
 
-        private void InvokeRemove(Version v) {
-            Task.Run(async () => {
-                v.StateChangeInfo = new VersionStateChangeInfo();
-                v.StateChangeInfo.IsUninstalling = true;
-                await UnregisterPackage(Path.GetFullPath(v.GameDirectory));
-                Directory.Delete(v.GameDirectory, true);
-                v.StateChangeInfo = null;
+        private async Task Remove(Version v) {
+            v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Uninstalling);
+            await UnregisterPackage(Path.GetFullPath(v.GameDirectory));
+            Directory.Delete(v.GameDirectory, true);
+            v.StateChangeInfo = null;
+            if (v.IsImported) {
+                Dispatcher.Invoke(() => _versions.Remove(v));
+                Debug.WriteLine("Removed imported version " + v.DisplayName);
+            } else {
                 v.UpdateInstallStatus();
+                Debug.WriteLine("Removed release version " + v.DisplayName);
+            }
+        }
+
+        private void InvokeRemove(Version v) {
+            Task.Run(async () => await Remove(v));
+        }
+
+        private void ShowInstalledVersionsOnlyCheckbox_Changed(object sender, RoutedEventArgs e) {
+            UserPrefs.ShowInstalledOnly = ShowInstalledVersionsOnlyCheckbox.IsChecked ?? false;
+            RefreshLists();
+            RewritePrefs();
+        }
+
+        private void RefreshLists() {
+            Dispatcher.Invoke(() => {
+                foreach (var list in _versionListViews) {
+                    list.View.Refresh();
+                }
             });
         }
 
-        private void ShowBetaVersionsCheck_Changed(object sender, RoutedEventArgs e) {
-            UserPrefs.ShowBetas = ShowBetasCheckbox.IsChecked ?? false;
-            CollectionViewSource.GetDefaultView(VersionList.ItemsSource).Refresh();
-            RewritePrefs();
-        }
-
-        private void ShowInstalledOnlyCheck_Changed(object sender, RoutedEventArgs e) {
-            UserPrefs.ShowInstalledOnly = ShowInstalledVersionsOnlyCheckbox.IsChecked ?? false;
-            CollectionViewSource.GetDefaultView(VersionList.ItemsSource).Refresh();
-            RewritePrefs();
-        }
-
-        private bool VersionListFilter(object obj) {
-            Version v = obj as Version;
-            return (!v.IsBeta || UserPrefs.ShowBetas) && (v.IsInstalled || !UserPrefs.ShowInstalledOnly);
+        private void DeleteAppxAfterDownloadCheck_Changed(object sender, RoutedEventArgs e) {
+            UserPrefs.DeleteAppxAfterDownload = DeleteAppxAfterDownloadOption.IsChecked;
         }
 
         private void RewritePrefs() {
             File.WriteAllText(PREFS_PATH, JsonConvert.SerializeObject(UserPrefs));
+        }
+
+        private void MenuItemOpenLogFileClicked(object sender, RoutedEventArgs e) {
+            if (!File.Exists(@"Log.txt")) {
+                MessageBox.Show("Log file not found", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            } else 
+                Process.Start(@"Log.txt");
+        }
+
+        private void MenuItemOpenDataDirClicked(object sender, RoutedEventArgs e) {
+            Process.Start(@"explorer.exe", Directory.GetCurrentDirectory());
+        }
+
+        private void MenuItemCleanupForMicrosoftStoreReinstallClicked(object sender, RoutedEventArgs e) {
+            var result = MessageBox.Show(
+                "Versions of Minecraft installed by the launcher will be uninstalled.\n" +
+                    "This will allow you to reinstall Minecraft from Microsoft Store. Your data (worlds, etc.) won't be removed.\n\n" +
+                    "Are you sure you want to continue?",
+                "Uninstall all versions",
+                MessageBoxButton.OKCancel
+            );
+            if (result == MessageBoxResult.OK) {
+                Debug.WriteLine("Starting uninstall of ALL versions!");
+                foreach (var version in _versions) {
+                    if (version.IsInstalled) {
+                        InvokeRemove(version);
+                    }
+                }
+                Debug.WriteLine("Scheduled uninstall of ALL versions.");
+            }
+        }
+
+        private void MenuItemRefreshVersionListClicked(object sender, RoutedEventArgs e) {
+            Dispatcher.Invoke(LoadVersionList);
         }
     }
 
@@ -340,32 +497,49 @@ namespace MCLauncher {
 
         }
 
-        public class Versions : List<Object> {
-        }
-
         public class Version : NotifyPropertyChangedBase {
+            public static readonly string UNKNOWN_UUID = "UNKNOWN";
 
-            public Version() { }
-            public Version(string uuid, string name, bool isBeta, ICommonVersionCommands commands) {
+            public Version(string uuid, string name, bool isBeta, bool isNew, ICommonVersionCommands commands) {
                 this.UUID = uuid;
                 this.Name = name;
                 this.IsBeta = isBeta;
+                this.IsNew = isNew;
                 this.DownloadCommand = commands.DownloadCommand;
                 this.LaunchCommand = commands.LaunchCommand;
                 this.RemoveCommand = commands.RemoveCommand;
+                this.GameDirectory = "Minecraft-" + Name;
+            }
+            public Version(string name, string directory, ICommonVersionCommands commands) {
+                this.UUID = UNKNOWN_UUID;
+                this.Name = name;
+                this.IsBeta = false;
+                this.DownloadCommand = commands.DownloadCommand;
+                this.LaunchCommand = commands.LaunchCommand;
+                this.RemoveCommand = commands.RemoveCommand;
+                this.GameDirectory = directory;
+                this.IsImported = true;
             }
 
             public string UUID { get; set; }
             public string Name { get; set; }
             public bool IsBeta { get; set; }
+            public bool IsNew {
+                get { return _isNew; }
+                set {
+                    _isNew = value;
+                    OnPropertyChanged("IsNew");
+                }
+            }
+            public bool IsImported { get; private set; }
 
-            public string GameDirectory => "Minecraft-" + Name;
+            public string GameDirectory { get; set; }
 
             public bool IsInstalled => Directory.Exists(GameDirectory);
 
             public string DisplayName {
                 get {
-                    return Name + (IsBeta ? " (beta)" : "");
+                    return Name + (IsBeta ? " (beta)" : "") + (IsNew ? " (NEW!)" : "");
                 }
             }
             public string DisplayInstallStatus {
@@ -379,6 +553,7 @@ namespace MCLauncher {
             public ICommand RemoveCommand { get; set; }
 
             private VersionStateChangeInfo _stateChangeInfo;
+            private bool _isNew = false;
             public VersionStateChangeInfo StateChangeInfo {
                 get { return _stateChangeInfo; }
                 set { _stateChangeInfo = value; OnPropertyChanged("StateChangeInfo"); OnPropertyChanged("IsStateChanging"); }
@@ -392,37 +567,47 @@ namespace MCLauncher {
 
         }
 
+        public enum VersionState {
+            Initializing,
+            Downloading,
+            Extracting,
+            Registering,
+            Launching,
+            Uninstalling
+        };
+
         public class VersionStateChangeInfo : NotifyPropertyChangedBase {
 
-            private bool _isInitializing;
-            private bool _isExtracting;
-            private bool _isUninstalling;
-            private bool _isLaunching;
+            private VersionState _versionState;
+
             private long _downloadedBytes;
             private long _totalSize;
 
-            public bool IsInitializing {
-                get { return _isInitializing; }
-                set { _isInitializing = value; OnPropertyChanged("IsProgressIndeterminate"); OnPropertyChanged("DisplayStatus"); }
+            public VersionStateChangeInfo(VersionState versionState) {
+                _versionState = versionState;
             }
 
-            public bool IsExtracting {
-                get { return _isExtracting; }
-                set { _isExtracting = value; OnPropertyChanged("IsProgressIndeterminate"); OnPropertyChanged("DisplayStatus"); }
-            }
-
-            public bool IsUninstalling {
-                get { return _isUninstalling; }
-                set { _isUninstalling = value; OnPropertyChanged("IsProgressIndeterminate"); OnPropertyChanged("DisplayStatus"); }
-            }
-
-            public bool IsLaunching {
-                get { return _isLaunching; }
-                set { _isLaunching = value; OnPropertyChanged("IsProgressIndeterminate"); OnPropertyChanged("DisplayStatus"); }
+            public VersionState VersionState {
+                get { return _versionState; }
+                set {
+                    _versionState = value;
+                    OnPropertyChanged("IsProgressIndeterminate");
+                    OnPropertyChanged("DisplayStatus");
+                }
             }
 
             public bool IsProgressIndeterminate {
-                get { return IsInitializing || IsExtracting || IsUninstalling || IsLaunching; }
+                get {
+                    switch (_versionState) {
+                        case VersionState.Initializing:
+                        case VersionState.Extracting:
+                        case VersionState.Uninstalling:
+                        case VersionState.Registering:
+                        case VersionState.Launching:
+                            return true;
+                        default: return false;
+                    }
+                }
             }
 
             public long DownloadedBytes {
@@ -437,15 +622,16 @@ namespace MCLauncher {
 
             public string DisplayStatus {
                 get {
-                    if (IsInitializing)
-                        return "Downloading...";
-                    if (IsExtracting)
-                        return "Extracting...";
-                    if (IsUninstalling)
-                        return "Uninstalling...";
-                    if (IsLaunching)
-                        return "Launching...";
-                    return "Downloading... " + (DownloadedBytes / 1024 / 1024) + "MiB/" + (TotalSize / 1024 / 1024) + "MiB";
+                    switch (_versionState) {
+                        case VersionState.Initializing: return "Preparing...";
+                        case VersionState.Downloading:
+                            return "Downloading... " + (DownloadedBytes / 1024 / 1024) + "MiB/" + (TotalSize / 1024 / 1024) + "MiB";
+                        case VersionState.Extracting: return "Extracting...";
+                        case VersionState.Registering: return "Registering package...";
+                        case VersionState.Launching: return "Launching...";
+                        case VersionState.Uninstalling: return "Uninstalling...";
+                        default: return "Wtf is happening? ...";
+                    }
                 }
             }
 
