@@ -9,6 +9,7 @@ using namespace Windows::Internal::Security::Authentication::Web;
 using namespace Windows::Security::Cryptography;
 
 #define WU_NO_ACCOUNT MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, 0x200)
+#define WU_TOKEN_FETCH_ERROR_BASE MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, 0x400)
 
 extern "C" __declspec(dllexport) int  __stdcall GetWUToken(wchar_t** retToken) {
 	auto tokenBrokerStatics = get_activation_factory<TokenBrokerInternal, Windows::Foundation::IUnknown>();
@@ -24,6 +25,9 @@ extern "C" __declspec(dllexport) int  __stdcall GetWUToken(wchar_t** retToken) {
 	auto accountProvider = WebAuthenticationCoreManager::FindAccountProviderAsync(L"https://login.microsoft.com", L"consumers").get();
 	WebTokenRequest request(accountProvider, L"service::dcat.update.microsoft.com::MBI_SSL", L"{28520974-CE92-4F36-A219-3F255AF7E61E}");
 	auto result = WebAuthenticationCoreManager::GetTokenSilentlyAsync(request, accountInfo).get();
+	if (result.ResponseStatus() != WebTokenRequestStatus::Success) {
+		return WU_TOKEN_FETCH_ERROR_BASE | static_cast<int32_t>(result.ResponseStatus());
+	}
 	auto token = result.ResponseData().GetAt(0).Token();
 	wprintf(L"Token = %s\n", token.c_str());
 	auto tokenBinary = CryptographicBuffer::ConvertStringToBinary(token, BinaryStringEncoding::Utf16LE);

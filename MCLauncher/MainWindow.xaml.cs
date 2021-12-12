@@ -338,7 +338,7 @@ namespace MCLauncher {
                         Debug.WriteLine("Authentication complete");
                     } catch (WUTokenHelper.WUTokenException e) {
                         Debug.WriteLine("Authentication failed:\n" + e.ToString());
-                        MessageBox.Show("Failed to authenticate because: " + e.Message + "\n\n" + e.ToString(), "Authentication failed");
+                        MessageBox.Show("Failed to authenticate because: " + e.Message, "Authentication failed");
                         v.StateChangeInfo = null;
                         return;
                     } catch (Exception e) {
