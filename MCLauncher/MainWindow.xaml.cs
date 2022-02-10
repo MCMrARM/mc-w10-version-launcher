@@ -24,7 +24,6 @@ namespace MCLauncher {
     /// </summary>
     public partial class MainWindow : Window, ICommonVersionCommands {
 
-        private static readonly string MINECRAFT_PACKAGE_FAMILY = "Microsoft.MinecraftUWP_8wekyb3d8bbwe";
         private static readonly string PREFS_PATH = @"preferences.json";
         private static readonly string IMPORTED_VERSIONS_PATH = @"imported_versions";
         private static readonly string VERSIONS_API = "https://mrarm.io/r/w10-vdb";
@@ -56,7 +55,7 @@ namespace MCLauncher {
             var versionListViewRelease = Resources["versionListViewRelease"] as CollectionViewSource;
             versionListViewRelease.Filter += new FilterEventHandler((object sender, FilterEventArgs e) => {
                 var v = e.Item as Version;
-                e.Accepted = !v.IsImported && !v.IsBeta && (v.IsInstalled || v.IsStateChanging || !(ShowInstalledVersionsOnlyCheckbox.IsChecked ?? false));
+                e.Accepted = v.VersionType == VersionType.Release && (v.IsInstalled || v.IsStateChanging || !(ShowInstalledVersionsOnlyCheckbox.IsChecked ?? false));
             });
             versionListViewRelease.Source = _versions;
             ReleaseVersionList.DataContext = versionListViewRelease;
@@ -65,16 +64,25 @@ namespace MCLauncher {
             var versionListViewBeta = Resources["versionListViewBeta"] as CollectionViewSource;
             versionListViewBeta.Filter += new FilterEventHandler((object sender, FilterEventArgs e) => {
                 var v = e.Item as Version;
-                e.Accepted = !v.IsImported && v.IsBeta && (v.IsInstalled || v.IsStateChanging || !(ShowInstalledVersionsOnlyCheckbox.IsChecked ?? false));
+                e.Accepted = v.VersionType == VersionType.Beta && (v.IsInstalled || v.IsStateChanging || !(ShowInstalledVersionsOnlyCheckbox.IsChecked ?? false));
             });
             versionListViewBeta.Source = _versions;
             BetaVersionList.DataContext = versionListViewBeta;
             _versionListViews.Add(versionListViewBeta);
 
+            var versionListViewPreview = Resources["versionListViewPreview"] as CollectionViewSource;
+            versionListViewPreview.Filter += new FilterEventHandler((object sender, FilterEventArgs e) => {
+                var v = e.Item as Version;
+                e.Accepted = v.VersionType == VersionType.Preview && (v.IsInstalled || v.IsStateChanging || !(ShowInstalledVersionsOnlyCheckbox.IsChecked ?? false));
+            });
+            versionListViewPreview.Source = _versions;
+            PreviewVersionList.DataContext = versionListViewPreview;
+            _versionListViews.Add(versionListViewPreview);
+
             var versionListViewImported = Resources["versionListViewImported"] as CollectionViewSource;
             versionListViewImported.Filter += new FilterEventHandler((object sender, FilterEventArgs e) => {
                 var v = e.Item as Version;
-                e.Accepted = v.IsImported;
+                e.Accepted = v.VersionType == VersionType.Imported;
             });
 
             versionListViewImported.Source = _versions;
@@ -179,7 +187,7 @@ namespace MCLauncher {
                 v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Registering);
                 string gameDir = Path.GetFullPath(v.GameDirectory);
                 try {
-                    await ReRegisterPackage(gameDir);
+                    await ReRegisterPackage(v.GamePackageFamily, gameDir);
                 } catch (Exception e) {
                     Debug.WriteLine("App re-register failed:\n" + e.ToString());
                     MessageBox.Show("App re-register failed:\n" + e.ToString());
@@ -189,7 +197,7 @@ namespace MCLauncher {
                 }
                 v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Launching);
                 try {
-                    var pkg = await AppDiagnosticInfo.RequestInfoForPackageAsync(MINECRAFT_PACKAGE_FAMILY);
+                    var pkg = await AppDiagnosticInfo.RequestInfoForPackageAsync(v.GamePackageFamily);
                     if (pkg.Count > 0)
                         await pkg[0].LaunchAsync();
                     Debug.WriteLine("App launch finished!");
@@ -228,8 +236,8 @@ namespace MCLauncher {
             return tmpDir;
         }
 
-        private void BackupMinecraftDataForRemoval() {
-            var data = ApplicationDataManager.CreateForPackageFamily(MINECRAFT_PACKAGE_FAMILY);
+        private void BackupMinecraftDataForRemoval(string packageFamily) {
+            var data = ApplicationDataManager.CreateForPackageFamily(packageFamily);
             string tmpDir = GetBackupMinecraftDataDir();
             if (Directory.Exists(tmpDir)) {
                 Debug.WriteLine("BackupMinecraftDataForRemoval error: " + tmpDir + " already exists");
@@ -262,20 +270,20 @@ namespace MCLauncher {
             }
         }
 
-        private void RestoreMinecraftDataFromReinstall() {
+        private void RestoreMinecraftDataFromReinstall(string packageFamily) {
             string tmpDir = GetBackupMinecraftDataDir();
             if (!Directory.Exists(tmpDir))
                 return;
-            var data = ApplicationDataManager.CreateForPackageFamily(MINECRAFT_PACKAGE_FAMILY);
+            var data = ApplicationDataManager.CreateForPackageFamily(packageFamily);
             Debug.WriteLine("Moving backup Minecraft data to: " + data.LocalFolder.Path);
             RestoreMove(tmpDir, data.LocalFolder.Path);
             Directory.Delete(tmpDir, true);
         }
 
-        private async Task RemovePackage(Package pkg) {
+        private async Task RemovePackage(Package pkg, string packageFamily) {
             Debug.WriteLine("Removing package: " + pkg.Id.FullName);
             if (!pkg.IsDevelopmentMode) {
-                BackupMinecraftDataForRemoval();
+                BackupMinecraftDataForRemoval(packageFamily);
                 await DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, 0));
             } else {
                 Debug.WriteLine("Package is in development mode");
@@ -292,29 +300,29 @@ namespace MCLauncher {
             }
         }
 
-        private async Task UnregisterPackage(string gameDir) {
-            foreach (var pkg in new PackageManager().FindPackages(MINECRAFT_PACKAGE_FAMILY)) {
+        private async Task UnregisterPackage(string packageFamily, string gameDir) {
+            foreach (var pkg in new PackageManager().FindPackages(packageFamily)) {
                 string location = GetPackagePath(pkg);
                 if (location == "" || location == gameDir) {
-                    await RemovePackage(pkg);
+                    await RemovePackage(pkg, packageFamily);
                 }
             }
         }
 
-        private async Task ReRegisterPackage(string gameDir) {
-            foreach (var pkg in new PackageManager().FindPackages(MINECRAFT_PACKAGE_FAMILY)) {
+        private async Task ReRegisterPackage(string packageFamily, string gameDir) {
+            foreach (var pkg in new PackageManager().FindPackages(packageFamily)) {
                 string location = GetPackagePath(pkg);
                 if (location == gameDir) {
                     Debug.WriteLine("Skipping package removal - same path: " + pkg.Id.FullName + " " + location);
                     return;
                 }
-                await RemovePackage(pkg);
+                await RemovePackage(pkg, packageFamily);
             }
             Debug.WriteLine("Registering package");
             string manifestPath = Path.Combine(gameDir, "AppxManifest.xml");
             await DeploymentProgressWrapper(new PackageManager().RegisterPackageAsync(new Uri(manifestPath), null, DeploymentOptions.DevelopmentMode));
             Debug.WriteLine("App re-register done!");
-            RestoreMinecraftDataFromReinstall();
+            RestoreMinecraftDataFromReinstall(packageFamily);
         }
 
         private void InvokeDownload(Version v) {
@@ -325,9 +333,9 @@ namespace MCLauncher {
 
             Debug.WriteLine("Download start");
             Task.Run(async () => {
-                string dlPath = "Minecraft-" + v.Name + ".Appx";
+                string dlPath = (v.VersionType == VersionType.Preview ? "Minecraft-Preview-" : "Minecraft-") + v.Name + ".Appx";
                 VersionDownloader downloader = _anonVersionDownloader;
-                if (v.IsBeta) {
+                if (v.VersionType == VersionType.Beta) {
                     downloader = _userVersionDownloader;
                     if (Interlocked.CompareExchange(ref _userVersionDownloaderLoginTaskStarted, 1, 0) == 0) {
                         _userVersionDownloaderLoginTask.Start();
@@ -363,7 +371,7 @@ namespace MCLauncher {
                     Debug.WriteLine("Download failed due to failure to fetch download URL");
                     MessageBox.Show(
                         "Unable to fetch download URL for version." +
-                        (v.IsBeta ? "\nFor beta versions, please make sure your account is subscribed to the Minecraft beta programme in the Xbox Insider Hub app." : "")
+                        (v.VersionType == VersionType.Beta ? "\nFor beta versions, please make sure your account is subscribed to the Minecraft beta programme in the Xbox Insider Hub app." : "")
                     );
                     v.StateChangeInfo = null;
                     return;
@@ -401,7 +409,7 @@ namespace MCLauncher {
 
         private async Task Remove(Version v) {
             v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Uninstalling);
-            await UnregisterPackage(Path.GetFullPath(v.GameDirectory));
+            await UnregisterPackage(v.GamePackageFamily, Path.GetFullPath(v.GameDirectory));
             Directory.Delete(v.GameDirectory, true);
             v.StateChangeInfo = null;
             if (v.IsImported) {
@@ -474,7 +482,14 @@ namespace MCLauncher {
         }
     }
 
+    struct MinecraftPackageFamilies
+    {
+        public static readonly string MINECRAFT = "Microsoft.MinecraftUWP_8wekyb3d8bbwe";
+        public static readonly string MINECRAFT_PREVIEW = "Microsoft.MinecraftWindowsBeta_8wekyb3d8bbwe";
+    }
+
     namespace WPFDataTypes {
+
 
         public class NotifyPropertyChangedBase : INotifyPropertyChanged {
 
@@ -497,33 +512,40 @@ namespace MCLauncher {
 
         }
 
+        public enum VersionType : int
+        {
+            Release = 0,
+            Beta = 1,
+            Preview = 2,
+            Imported = 100
+        }
+
         public class Version : NotifyPropertyChangedBase {
             public static readonly string UNKNOWN_UUID = "UNKNOWN";
 
-            public Version(string uuid, string name, bool isBeta, bool isNew, ICommonVersionCommands commands) {
+            public Version(string uuid, string name, VersionType versionType, bool isNew, ICommonVersionCommands commands) {
                 this.UUID = uuid;
                 this.Name = name;
-                this.IsBeta = isBeta;
+                this.VersionType = versionType;
                 this.IsNew = isNew;
                 this.DownloadCommand = commands.DownloadCommand;
                 this.LaunchCommand = commands.LaunchCommand;
                 this.RemoveCommand = commands.RemoveCommand;
-                this.GameDirectory = "Minecraft-" + Name;
+                this.GameDirectory = (versionType == VersionType.Preview ? "Minecraft-Preview-" : "Minecraft-") + Name;
             }
             public Version(string name, string directory, ICommonVersionCommands commands) {
                 this.UUID = UNKNOWN_UUID;
                 this.Name = name;
-                this.IsBeta = false;
+                this.VersionType = VersionType.Imported;
                 this.DownloadCommand = commands.DownloadCommand;
                 this.LaunchCommand = commands.LaunchCommand;
                 this.RemoveCommand = commands.RemoveCommand;
                 this.GameDirectory = directory;
-                this.IsImported = true;
             }
 
             public string UUID { get; set; }
             public string Name { get; set; }
-            public bool IsBeta { get; set; }
+            public VersionType VersionType { get; set; }
             public bool IsNew {
                 get { return _isNew; }
                 set {
@@ -531,15 +553,27 @@ namespace MCLauncher {
                     OnPropertyChanged("IsNew");
                 }
             }
-            public bool IsImported { get; private set; }
+            public bool IsImported {
+                get => VersionType == VersionType.Imported;
+            }
 
             public string GameDirectory { get; set; }
+
+            public string GamePackageFamily
+            {
+                get => VersionType == VersionType.Preview ? MinecraftPackageFamilies.MINECRAFT_PREVIEW : MinecraftPackageFamilies.MINECRAFT;
+            }
 
             public bool IsInstalled => Directory.Exists(GameDirectory);
 
             public string DisplayName {
                 get {
-                    return Name + (IsBeta ? " (beta)" : "") + (IsNew ? " (NEW!)" : "");
+                    string typeTag = "";
+                    if (VersionType == VersionType.Beta)
+                        typeTag = "(beta)";
+                    else if (VersionType == VersionType.Preview)
+                        typeTag = "(preview)";
+                    return Name + (typeTag.Length > 0 ? " " + typeTag : "") + (IsNew ? " (NEW!)" : "");
                 }
             }
             public string DisplayInstallStatus {
