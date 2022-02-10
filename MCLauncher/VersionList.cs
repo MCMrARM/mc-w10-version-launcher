@@ -46,10 +46,10 @@ namespace MCLauncher {
 
         private void ParseList(JArray data, bool isCache) {
             Clear();
-            // ([name, uuid, isBeta])[]
+            // ([name, uuid, versionType])[]
             foreach (JArray o in data.AsEnumerable().Reverse()) {
                 bool isNew = dbVersions.Add(o[0].Value<string>()) && !isCache;
-                Add(new WPFDataTypes.Version(o[1].Value<string>(), o[0].Value<string>(), o[2].Value<int>() == 1, isNew, _commands));
+                Add(new WPFDataTypes.Version(o[1].Value<string>(), o[0].Value<string>(), (WPFDataTypes.VersionType) o[2].Value<int>(), isNew, _commands));
             }
         }
 

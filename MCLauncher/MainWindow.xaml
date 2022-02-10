@@ -16,6 +16,10 @@
             IsLiveFilteringRequested="True"
         />
         <CollectionViewSource
+            x:Key="versionListViewPreview"
+            IsLiveFilteringRequested="True"
+        />
+        <CollectionViewSource
             x:Key="versionListViewImported"
             IsLiveFilteringRequested="True"
         />
@@ -114,6 +118,9 @@
             </TabItem>
             <TabItem Header="Beta">
                 <ContentControl x:Name="BetaVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
+            </TabItem>
+            <TabItem Header="Preview">
+                <ContentControl x:Name="PreviewVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
             </TabItem>
             <TabItem Header="Imported">
                 <ContentControl x:Name="ImportedVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
