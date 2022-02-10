@@ -49,7 +49,10 @@ namespace MCLauncher {
             // ([name, uuid, versionType])[]
             foreach (JArray o in data.AsEnumerable().Reverse()) {
                 bool isNew = dbVersions.Add(o[0].Value<string>()) && !isCache;
-                Add(new WPFDataTypes.Version(o[1].Value<string>(), o[0].Value<string>(), (WPFDataTypes.VersionType) o[2].Value<int>(), isNew, _commands));
+                int versionType = o[2].Value<int>();
+                if (!Enum.IsDefined(typeof(WPFDataTypes.VersionType), versionType) || versionType == (int) WPFDataTypes.VersionType.Imported)
+                    continue;
+                Add(new WPFDataTypes.Version(o[1].Value<string>(), o[0].Value<string>(), (WPFDataTypes.VersionType) versionType, isNew, _commands));
             }
         }
 
