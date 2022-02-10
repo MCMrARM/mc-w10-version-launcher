@@ -333,7 +333,7 @@ namespace MCLauncher {
 
             Debug.WriteLine("Download start");
             Task.Run(async () => {
-                string dlPath = "Minecraft-" + v.Name + ".Appx";
+                string dlPath = (v.VersionType == VersionType.Preview ? "Minecraft-Preview-" : "Minecraft-") + v.Name + ".Appx";
                 VersionDownloader downloader = _anonVersionDownloader;
                 if (v.VersionType == VersionType.Beta) {
                     downloader = _userVersionDownloader;
