@@ -531,7 +531,7 @@ namespace MCLauncher {
                 this.DownloadCommand = commands.DownloadCommand;
                 this.LaunchCommand = commands.LaunchCommand;
                 this.RemoveCommand = commands.RemoveCommand;
-                this.GameDirectory = "Minecraft-" + Name;
+                this.GameDirectory = (versionType == VersionType.Preview ? "Minecraft-Preview-" : "Minecraft-") + Name;
             }
             public Version(string name, string directory, ICommonVersionCommands commands) {
                 this.UUID = UNKNOWN_UUID;
