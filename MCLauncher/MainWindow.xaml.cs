@@ -301,7 +301,7 @@ namespace MCLauncher {
         }
 
         private async Task UnregisterPackage(string packageFamily, string gameDir) {
-            foreach (var pkg in new PackageManager().FindPackages(packageFamily)) {
+            foreach (var pkg in new PackageManager().FindPackagesForUser(string.Empty, packageFamily)) {
                 string location = GetPackagePath(pkg);
                 if (location == "" || location == gameDir) {
                     await RemovePackage(pkg, packageFamily);
@@ -310,7 +310,7 @@ namespace MCLauncher {
         }
 
         private async Task ReRegisterPackage(string packageFamily, string gameDir) {
-            foreach (var pkg in new PackageManager().FindPackages(packageFamily)) {
+            foreach (var pkg in new PackageManager().FindPackagesForUser(string.Empty, packageFamily)) {
                 string location = GetPackagePath(pkg);
                 if (location == gameDir) {
                     Debug.WriteLine("Skipping package removal - same path: " + pkg.Id.FullName + " " + location);
