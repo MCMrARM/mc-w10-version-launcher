@@ -10,6 +10,7 @@ namespace MCLauncher {
     using System.Diagnostics;
     using System.IO;
     using System.IO.Compression;
+    using System.Reflection;
     using System.Threading;
     using System.Windows.Data;
     using Windows.ApplicationModel;
@@ -213,6 +214,7 @@ namespace MCLauncher {
             });
         }
 
+        private const int ERROR_PACKAGE_ALREADY_EXISTS = unchecked((int)0x80073CFB);
         private async Task DeploymentProgressWrapper(IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> t) {
             TaskCompletionSource<int> src = new TaskCompletionSource<int>();
             t.Progress += (v, p) => {
@@ -220,8 +222,33 @@ namespace MCLauncher {
             };
             t.Completed += (v, p) => {
                 if (p == AsyncStatus.Error) {
-                    Debug.WriteLine("Deployment failed: " + v.GetResults().ErrorText);
-                    src.SetException(new Exception("Deployment failed: " + v.GetResults().ErrorText));
+                    if (v.GetResults().ExtendedErrorCode.HResult == ERROR_PACKAGE_ALREADY_EXISTS) {
+                        Debug.WriteLine("Requesting an uninstall from all users");
+
+                        ProcessStartInfo startInfo = new ProcessStartInfo();
+                        startInfo.WorkingDirectory = Environment.CurrentDirectory;
+                        startInfo.FileName = Assembly.GetExecutingAssembly().Location;
+                        startInfo.Verb = "runas";
+                        startInfo.Arguments = "/Uninstall";
+                        try {
+                            Process elevated_process = Process.Start(startInfo);
+                            elevated_process.WaitForExit();
+                        }
+                        catch (System.ComponentModel.Win32Exception ex) {
+                            src.SetException(new Exception("Failed to unintall using elevated app: " + ex.Message));
+                            return;
+                        }
+
+                        Debug.WriteLine("Rerunning installer");
+                        string gameDir = Path.GetFullPath("Minecraft-1.14.60.5");
+                        var task = Task.Run(async () => { await ReRegisterPackage(MinecraftPackageFamilies.MINECRAFT, gameDir); });
+                        task.Wait();
+                        src.SetResult(1);
+                    }
+                    else { 
+                        Debug.WriteLine("Deployment failed: " + v.GetResults().ErrorText);
+                        src.SetException(new Exception("Deployment failed: " + v.GetResults().ErrorText));
+                    }
                 } else {
                     Debug.WriteLine("Deployment done: " + p);
                     src.SetResult(1);
@@ -236,8 +263,18 @@ namespace MCLauncher {
             return tmpDir;
         }
 
-        private void BackupMinecraftDataForRemoval(string packageFamily) {
+        private string GetMinecraftDataFolder(string packageFamily) {
             var data = ApplicationDataManager.CreateForPackageFamily(packageFamily);
+            return data.LocalFolder.Path;
+        }
+
+        private void BackupMinecraftDataForRemoval(string packageFamily) {
+            string dir = GetMinecraftDataFolder(packageFamily);
+            if (!Directory.Exists(dir)) {
+                Debug.WriteLine("BackupMinecraftDataForRemoval error: " + packageFamily + " doesn't exists");
+                return;
+            }
+
             string tmpDir = GetBackupMinecraftDataDir();
             if (Directory.Exists(tmpDir)) {
                 Debug.WriteLine("BackupMinecraftDataForRemoval error: " + tmpDir + " already exists");
@@ -246,7 +283,7 @@ namespace MCLauncher {
                 throw new Exception("Temporary dir exists");
             }
             Debug.WriteLine("Moving Minecraft data to: " + tmpDir);
-            Directory.Move(data.LocalFolder.Path, tmpDir);
+            Directory.Move(dir, tmpDir);
         }
 
         private void RestoreMove(string from, string to) {
@@ -274,20 +311,21 @@ namespace MCLauncher {
             string tmpDir = GetBackupMinecraftDataDir();
             if (!Directory.Exists(tmpDir))
                 return;
-            var data = ApplicationDataManager.CreateForPackageFamily(packageFamily);
-            Debug.WriteLine("Moving backup Minecraft data to: " + data.LocalFolder.Path);
-            RestoreMove(tmpDir, data.LocalFolder.Path);
+
+            string dir = GetMinecraftDataFolder(packageFamily);
+            Debug.WriteLine("Moving backup Minecraft data to: " + dir);
+            RestoreMove(tmpDir, dir);
             Directory.Delete(tmpDir, true);
         }
 
-        private async Task RemovePackage(Package pkg, string packageFamily) {
+        public async Task RemovePackage(Package pkg, string packageFamily) {
             Debug.WriteLine("Removing package: " + pkg.Id.FullName);
             if (!pkg.IsDevelopmentMode) {
                 BackupMinecraftDataForRemoval(packageFamily);
-                await DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, 0));
+                await DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, RemovalOptions.RemoveForAllUsers));
             } else {
                 Debug.WriteLine("Package is in development mode");
-                await DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, RemovalOptions.PreserveApplicationData));
+                await DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, RemovalOptions.PreserveApplicationData | RemovalOptions.RemoveForAllUsers));
             }
             Debug.WriteLine("Removal of package done: " + pkg.Id.FullName);
         }
