@@ -215,7 +215,7 @@ namespace MCLauncher {
         }
 
         private const int ERROR_PACKAGE_ALREADY_EXISTS = unchecked((int)0x80073CFB);
-        private async Task DeploymentProgressWrapper(IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> t) {
+        private async Task DeploymentProgressWrapper(IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> t, string packageFamily = "", string manifestPath = "") {
             TaskCompletionSource<int> src = new TaskCompletionSource<int>();
             t.Progress += (v, p) => {
                 Debug.WriteLine("Deployment progress: " + p.state + " " + p.percentage + "%");
@@ -223,25 +223,27 @@ namespace MCLauncher {
             t.Completed += (v, p) => {
                 if (p == AsyncStatus.Error) {
                     if (v.GetResults().ExtendedErrorCode.HResult == ERROR_PACKAGE_ALREADY_EXISTS) {
+                        if (packageFamily == string.Empty || manifestPath == string.Empty) {
+                            src.SetException(new Exception("Can't uninstall from all users for register because version is unknown"));
+                        }
+
                         Debug.WriteLine("Requesting an uninstall from all users");
 
                         ProcessStartInfo startInfo = new ProcessStartInfo();
                         startInfo.WorkingDirectory = Environment.CurrentDirectory;
                         startInfo.FileName = Assembly.GetExecutingAssembly().Location;
                         startInfo.Verb = "runas";
-                        startInfo.Arguments = "/Uninstall";
+                        startInfo.Arguments = "/Uninstall " + packageFamily;
                         try {
                             Process elevated_process = Process.Start(startInfo);
                             elevated_process.WaitForExit();
                         }
                         catch (System.ComponentModel.Win32Exception ex) {
                             src.SetException(new Exception("Failed to uninstall using elevated app: " + ex.Message));
-                            return;
                         }
 
                         Debug.WriteLine("Rerunning installer");
-                        string gameDir = Path.GetFullPath("Minecraft-1.14.60.5");
-                        var task = Task.Run(async () => { await ReRegisterPackage(MinecraftPackageFamilies.MINECRAFT, gameDir); });
+                        var task = Task.Run(async () => { await DeploymentProgressWrapper(new PackageManager().RegisterPackageAsync(new Uri(manifestPath), null, DeploymentOptions.DevelopmentMode)); });
                         task.Wait();
                         src.SetResult(1);
                     }
@@ -358,7 +360,7 @@ namespace MCLauncher {
             }
             Debug.WriteLine("Registering package");
             string manifestPath = Path.Combine(gameDir, "AppxManifest.xml");
-            await DeploymentProgressWrapper(new PackageManager().RegisterPackageAsync(new Uri(manifestPath), null, DeploymentOptions.DevelopmentMode));
+            await DeploymentProgressWrapper(new PackageManager().RegisterPackageAsync(new Uri(manifestPath), null, DeploymentOptions.DevelopmentMode), packageFamily, manifestPath);
             Debug.WriteLine("App re-register done!");
             RestoreMinecraftDataFromReinstall(packageFamily);
         }

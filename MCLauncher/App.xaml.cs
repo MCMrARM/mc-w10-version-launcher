@@ -1,6 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Linq;
-using System.Threading;
 using System.Windows;
 using Windows.Management.Deployment;
 
@@ -13,11 +11,9 @@ namespace MCLauncher {
         protected void App_Startup(object sender, StartupEventArgs e) {
             MainWindow mainWindow = new MainWindow();
 
-            if (e.Args.Contains("/Uninstall")) {
-                //Debugger.Launch();
-
-                foreach (var pkg in new PackageManager().FindPackages(MinecraftPackageFamilies.MINECRAFT)) {
-                    mainWindow.RemovePackage(pkg, MinecraftPackageFamilies.MINECRAFT).RunSynchronously();
+            if (e.Args.Length == 2 && e.Args[0] == "/Uninstall") {
+                foreach (var pkg in new PackageManager().FindPackages(e.Args[1])) {
+                    mainWindow.RemovePackage(pkg, e.Args[1]).RunSynchronously();
                 }
 
                 Shutdown();
