@@ -235,7 +235,7 @@ namespace MCLauncher {
                             elevated_process.WaitForExit();
                         }
                         catch (System.ComponentModel.Win32Exception ex) {
-                            src.SetException(new Exception("Failed to unintall using elevated app: " + ex.Message));
+                            src.SetException(new Exception("Failed to uninstall using elevated app: " + ex.Message));
                             return;
                         }
 
@@ -271,7 +271,7 @@ namespace MCLauncher {
         private void BackupMinecraftDataForRemoval(string packageFamily) {
             string dir = GetMinecraftDataFolder(packageFamily);
             if (!Directory.Exists(dir)) {
-                Debug.WriteLine("BackupMinecraftDataForRemoval error: " + packageFamily + " doesn't exists");
+                Debug.WriteLine("BackupMinecraftDataForRemoval error: " + packageFamily + " doesn't exist");
                 return;
             }
 
