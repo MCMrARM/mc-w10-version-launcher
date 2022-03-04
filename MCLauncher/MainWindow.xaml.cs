@@ -26,7 +26,7 @@ namespace MCLauncher {
 
         private static readonly string PREFS_PATH = @"preferences.json";
         private static readonly string IMPORTED_VERSIONS_PATH = @"imported_versions";
-        private static readonly string VERSIONS_API = "https://mrarm.io/r/w10-vdb";
+        private static readonly string[] VERSIONS_API = { "https://mrarm.io/r/w10-vdb", "https://gitee.com/quizhizhe/mc-w10-versiondb/raw/master/versions.json.min" };
 
         private VersionList _versions;
         public Preferences UserPrefs { get; }
@@ -38,9 +38,15 @@ namespace MCLauncher {
         private readonly Task _userVersionDownloaderLoginTask;
         private volatile int _userVersionDownloaderLoginTaskStarted;
         private volatile bool _hasLaunchTask = false;
+        private volatile int _realVersionAPI = 0;
 
         public MainWindow() {
-            _versions = new VersionList("versions.json", IMPORTED_VERSIONS_PATH, VERSIONS_API, this, VersionEntryPropertyChanged);
+            if(System.Threading.Thread.CurrentThread.CurrentCulture.Name == "zh-CN")
+            {
+                _realVersionAPI = 1; //Use Gitee mirror with China. 
+            }
+            
+            _versions = new VersionList("versions.json", IMPORTED_VERSIONS_PATH, VERSIONS_API[_realVersionAPI], this, VersionEntryPropertyChanged);
             InitializeComponent();
             ShowInstalledVersionsOnlyCheckbox.DataContext = this;
 
