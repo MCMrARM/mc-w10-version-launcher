@@ -1,0 +1,21 @@
+name: Sync version.txt to gitee
+
+on:
+  schedule:
+    - cron: "0 7 * * 0"
+
+jobs:
+  run:
+    name: Run
+    runs-on: ubuntu-latest
+    steps:
+    - name: Mirror Github to Gitee
+      uses: Yikun/hub-mirror-action@master
+      with:
+        src: github/MCMrARM
+        dst: gitee/quizhizhe
+        dst_key: ${{ secrets.GITEE_PRIVATE_KEY }}
+        dst_token:  ${{ secrets.GITEE_TOKEN }}
+        static_list: 'mc-w10-versiondb'
+        force_update: true
+        debug: true
