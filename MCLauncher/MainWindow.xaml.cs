@@ -40,17 +40,17 @@ namespace MCLauncher {
         private volatile bool _hasLaunchTask = false;
 
         public MainWindow() {
-            _versions = new VersionList("versions.json", IMPORTED_VERSIONS_PATH, VERSIONS_API, this, VersionEntryPropertyChanged);
-            InitializeComponent();
-            ShowInstalledVersionsOnlyCheckbox.DataContext = this;
-
-
             if (File.Exists(PREFS_PATH)) {
                 UserPrefs = JsonConvert.DeserializeObject<Preferences>(File.ReadAllText(PREFS_PATH));
             } else {
                 UserPrefs = new Preferences();
                 RewritePrefs();
             }
+
+            var versionsApi = UserPrefs.VersionsApi != "" ? UserPrefs.VersionsApi : VERSIONS_API;
+            _versions = new VersionList("versions.json", IMPORTED_VERSIONS_PATH, versionsApi, this, VersionEntryPropertyChanged);
+            InitializeComponent();
+            ShowInstalledVersionsOnlyCheckbox.DataContext = this;
 
             var versionListViewRelease = Resources["versionListViewRelease"] as CollectionViewSource;
             versionListViewRelease.Filter += new FilterEventHandler((object sender, FilterEventArgs e) => {
@@ -107,7 +107,7 @@ namespace MCLauncher {
                 Debug.WriteLine("List cache load failed:\n" + e.ToString());
             }
 
-            LoadingProgressLabel.Content = "Updating versions list from " + VERSIONS_API;
+            LoadingProgressLabel.Content = "Updating versions list from " + _versions.VersionsApi;
             LoadingProgressBar.Value = 2;
             try {
                 await _versions.DownloadList();
@@ -479,6 +479,22 @@ namespace MCLauncher {
 
         private void MenuItemRefreshVersionListClicked(object sender, RoutedEventArgs e) {
             Dispatcher.Invoke(LoadVersionList);
+        }
+
+        private void onEndpointChangedHandler(object sender, string newEndpoint) {
+            UserPrefs.VersionsApi = newEndpoint;
+            _versions.VersionsApi = newEndpoint == "" ? VERSIONS_API : newEndpoint;
+            Dispatcher.Invoke(LoadVersionList);
+            RewritePrefs();
+        }
+
+        private void MenuItemSetVersionListEndpointClicked(object sender, RoutedEventArgs e) {
+            var dialog = new VersionListEndpointDialog(UserPrefs.VersionsApi) {
+                Owner = this
+            };
+            dialog.OnEndpointChanged += onEndpointChangedHandler;
+
+            dialog.Show();
         }
     }
 

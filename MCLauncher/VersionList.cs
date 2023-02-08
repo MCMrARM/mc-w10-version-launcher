@@ -12,9 +12,10 @@ using System.Threading.Tasks;
 namespace MCLauncher {
     public class VersionList : ObservableCollection<WPFDataTypes.Version> {
 
+        public string VersionsApi { get; set; }
+
         private readonly string _cacheFile;
         private readonly string _importedDirectory;
-        private readonly string _versionsApi;
         private readonly WPFDataTypes.ICommonVersionCommands _commands;
         private readonly HttpClient _client = new HttpClient();
         HashSet<string> dbVersions = new HashSet<string>();
@@ -23,7 +24,7 @@ namespace MCLauncher {
         public VersionList(string cacheFile, string importedDirectory, string versionsApi, WPFDataTypes.ICommonVersionCommands commands, PropertyChangedEventHandler versionPropertyChangedEventHandler) {
             _cacheFile = cacheFile;
             _importedDirectory = importedDirectory;
-            _versionsApi = versionsApi;
+            VersionsApi = versionsApi;
             _commands = commands;
             _versionPropertyChangedHandler = versionPropertyChangedEventHandler;
             CollectionChanged += versionListOnCollectionChanged;
@@ -74,7 +75,7 @@ namespace MCLauncher {
         }
 
         public async Task DownloadList() {
-            var resp = await _client.GetAsync(_versionsApi);
+            var resp = await _client.GetAsync(VersionsApi);
             resp.EnsureSuccessStatusCode();
             var data = await resp.Content.ReadAsStringAsync();
             File.WriteAllText(_cacheFile, data);
