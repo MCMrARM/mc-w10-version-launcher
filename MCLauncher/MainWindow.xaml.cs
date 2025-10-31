@@ -162,6 +162,7 @@ namespace MCLauncher {
                 await Task.Run(() => {
                     try {
                         ZipFile.ExtractToDirectory(openFileDlg.FileName, directory);
+                        File.Delete(Path.Combine(directory, "AppxSignature.p7x"));
                     } catch (InvalidDataException ex) {
                         Debug.WriteLine("Failed extracting appx " + openFileDlg.FileName + ": " + ex.ToString());
                         MessageBox.Show("Failed to import appx " + openFileDlg.SafeFileName + ". It may be corrupted or not an appx file.\n\nExtraction error: " + ex.Message, "Import failure");
