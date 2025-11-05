@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
+using System.Collections.Generic;
 
 namespace MCLauncher {
 
@@ -68,12 +69,16 @@ namespace MCLauncher {
             protocol.SetMSAUserToken(WUTokenHelper.GetWUToken());
         }
 
-        public async Task Download(string updateIdentity, string revisionNumber, string destination, DownloadProgress progress, CancellationToken cancellationToken) {
+        public async Task DownloadAppx(string updateIdentity, string revisionNumber, string destination, DownloadProgress progress, CancellationToken cancellationToken) {
             string link = await GetDownloadUrl(updateIdentity, revisionNumber);
             if (link == null)
                 throw new BadUpdateIdentityException();
             Debug.WriteLine("Resolved download link: " + link);
             await DownloadFile(link, destination, progress, cancellationToken);
+        }
+
+        public async Task DownloadMsixvc(List<string> downloadUrls, string destination, DownloadProgress progress, CancellationToken cancellationToken) {
+            await DownloadFile(downloadUrls[0], destination, progress, cancellationToken);
         }
 
         public delegate void DownloadProgress(long current, long? total);

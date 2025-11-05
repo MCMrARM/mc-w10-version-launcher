@@ -69,7 +69,7 @@
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding DisplayName}" FontWeight="Bold" />
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding StateChangeInfo.DisplayStatus}" />
                 <Canvas Name="progressSizeHack" Grid.Row="2" Grid.Column="0" Height="12">
-                    <ProgressBar Width="{Binding Path=ActualWidth, ElementName=progressSizeHack, Mode=OneWay}" Height="{Binding Path=ActualHeight, ElementName=progressSizeHack, Mode=OneWay}" Minimum="0" Maximum="{Binding StateChangeInfo.TotalSize}" Value="{Binding StateChangeInfo.DownloadedBytes}" IsIndeterminate="{Binding StateChangeInfo.IsProgressIndeterminate}" />
+                    <ProgressBar Width="{Binding Path=ActualWidth, ElementName=progressSizeHack, Mode=OneWay}" Height="{Binding Path=ActualHeight, ElementName=progressSizeHack, Mode=OneWay}" Minimum="0" Maximum="{Binding StateChangeInfo.MaxProgress}" Value="{Binding StateChangeInfo.Progress}" IsIndeterminate="{Binding StateChangeInfo.IsProgressIndeterminate}" />
                 </Canvas>
                 <Button Grid.Row="2" Grid.Column="1" Content="X" Width="20" Margin="10 0 0 0" Command="{Binding StateChangeInfo.CancelCommand}" />
             </Grid>
@@ -141,7 +141,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Label Grid.Row="0" Grid.Column="0" Name="LoadingProgressLabel" Content="Nothing" Padding="0,0,0,0"/>
-                <ProgressBar Grid.Row="0" Grid.Column="1" Name="LoadingProgressBar" Width="100" Margin="5,0,0,0" Maximum="3" Value="2"/>
+                <ProgressBar Grid.Row="0" Grid.Column="1" Name="LoadingProgressBar" Width="100" Margin="5,0,0,0" Maximum="5" Value="4"/>
             </Grid>
         </Grid>
     </Grid>
