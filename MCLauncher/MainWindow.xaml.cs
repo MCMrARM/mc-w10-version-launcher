@@ -211,7 +211,6 @@ namespace MCLauncher {
                     success = await ExtractAppx(openFileDlg.FileName, directory, versionEntry);
                 
                 } else if (packageType == PackageType.GDK) {
-                    
                     success = await ExtractMsixvc(openFileDlg.FileName, directory, versionEntry, isPreview: false);
                 } else {
                     Debug.Assert(false);
