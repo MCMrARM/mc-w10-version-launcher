@@ -103,6 +103,8 @@ namespace MCLauncher {
         }
 
         private async void LoadVersionList() {
+            _versions.PrepareForReload();
+
             LoadingProgressLabel.Content = "Loading GDK versions from cache";
             LoadingProgressBar.Value = 1;
 
@@ -114,8 +116,18 @@ namespace MCLauncher {
                 Debug.WriteLine("List cache load failed:\n" + e.ToString());
             }
 
-            LoadingProgressLabel.Content = "Downloading new GDK version data";
+            LoadingProgressLabel.Content = "Loading UWP versions from cache";
             LoadingProgressBar.Value = 2;
+            try {
+                await _versions.LoadFromCacheUWP();
+            } catch (Exception e) {
+                Debug.WriteLine("List cache load failed:\n" + e.ToString());
+            }
+
+            _versions.PrepareForReload();
+
+            LoadingProgressLabel.Content = "Downloading new GDK version data";
+            LoadingProgressBar.Value = 3;
             try {
                 await _versions.DownloadVersionsGDK();
             } catch (Exception e) {
@@ -123,13 +135,6 @@ namespace MCLauncher {
                 MessageBox.Show("Failed to update version list from the internet. Some new versions might be missing.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
-            LoadingProgressLabel.Content = "Loading UWP versions from cache";
-            LoadingProgressBar.Value = 3;
-            try {
-                await _versions.LoadFromCacheUWP();
-            } catch (Exception e) {
-                Debug.WriteLine("List cache load failed:\n" + e.ToString());
-            }
 
             LoadingProgressLabel.Content = "Downloading new UWP version data";
             LoadingProgressBar.Value = 4;

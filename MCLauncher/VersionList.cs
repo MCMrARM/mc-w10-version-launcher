@@ -9,7 +9,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 namespace MCLauncher {
@@ -62,9 +61,7 @@ namespace MCLauncher {
                 int versionType = o[2].Value<int>();
                 if (!Enum.IsDefined(typeof(WPFDataTypes.VersionType), versionType) || versionType == (int) WPFDataTypes.VersionType.Imported)
                     continue;
-                if (!exists) {
-                    Add(new WPFDataTypes.Version(o[1].Value<string>(), o[0].Value<string>(), (WPFDataTypes.VersionType)versionType, isNew, _commands, PackageType.UWP, null));
-                }
+                Add(new WPFDataTypes.Version(o[1].Value<string>(), o[0].Value<string>(), (WPFDataTypes.VersionType)versionType, isNew, _commands, PackageType.UWP, null));
             }
         }
 
@@ -83,9 +80,8 @@ namespace MCLauncher {
                 }
                 bool exists = !dbVersions.Add(versionName);
                 bool isNew = !exists && !isCache;
-                if (!exists) {
-                    Add(new WPFDataTypes.Version(WPFDataTypes.Version.UNKNOWN_UUID, versionName, versionType, isNew, _commands, PackageType.GDK, downloadUrls));
-                }
+
+                Add(new WPFDataTypes.Version(WPFDataTypes.Version.UNKNOWN_UUID, versionName, versionType, isNew, _commands, PackageType.GDK, downloadUrls));
             }
         }
 
@@ -94,6 +90,13 @@ namespace MCLauncher {
             ParseListGDK(data["preview"] as JObject, isCache, WPFDataTypes.VersionType.Preview);
         }
 
+        public void PrepareForReload() {
+            for (int i = Count - 1; i >= 0; i--) {
+                if (this[i].VersionType != WPFDataTypes.VersionType.Imported) {
+                    RemoveAt(i);
+                }
+            }
+        }
 
         public async Task LoadImported() {
             string[] subdirectoryEntries = await Task.Run(() => Directory.Exists(_importedDirectory) ? Directory.GetDirectories(_importedDirectory) : Array.Empty<string>());
