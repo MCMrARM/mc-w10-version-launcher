@@ -16,8 +16,8 @@ namespace MCLauncher {
 
         private readonly string _cacheFile;
         private readonly string _importedDirectory;
-        private readonly WPFDataTypes.ICommonVersionCommands _commands;
-        private readonly HttpClient _client = new HttpClient();
+        private WPFDataTypes.ICommonVersionCommands _commands;
+        private static readonly HttpClient _client = new HttpClient() { Timeout = TimeSpan.FromSeconds(30) };
         HashSet<string> dbVersions = new HashSet<string>();
 
         private PropertyChangedEventHandler _versionPropertyChangedHandler;
@@ -28,6 +28,11 @@ namespace MCLauncher {
             _commands = commands;
             _versionPropertyChangedHandler = versionPropertyChangedEventHandler;
             CollectionChanged += versionListOnCollectionChanged;
+        }
+
+        public void SetCommands(WPFDataTypes.ICommonVersionCommands commands)
+        {
+            _commands = commands ?? throw new ArgumentNullException(nameof(commands));
         }
 
         private void versionListOnCollectionChanged(object sender, NotifyCollectionChangedEventArgs e) {
@@ -70,7 +75,11 @@ namespace MCLauncher {
                     var data = await reader.ReadToEndAsync();
                     ParseList(JArray.Parse(data), true);
                 }
-            } catch (FileNotFoundException) { // ignore
+            } catch (FileNotFoundException) { 
+                // Cache doesn't exist yet - this is normal on first run
+            } catch (Exception e) {
+                System.Diagnostics.Debug.WriteLine($"Failed to load cache: {e.Message}");
+                // Continue without cache
             }
         }
 
@@ -78,12 +87,21 @@ namespace MCLauncher {
             var resp = await _client.GetAsync(VersionsApi);
             resp.EnsureSuccessStatusCode();
             var data = await resp.Content.ReadAsStringAsync();
-            File.WriteAllText(_cacheFile, data);
+            
+            // Write to cache with error handling
+            try {
+                File.WriteAllText(_cacheFile, data);
+            } catch (Exception e) {
+                System.Diagnostics.Debug.WriteLine($"Failed to write cache file: {e.Message}");
+                // Continue even if cache write fails
+            }
+            
             ParseList(JArray.Parse(data), false);
         }
 
         public WPFDataTypes.Version AddEntry(string name, string path) {
-            var result = new WPFDataTypes.Version(name.Replace(".appx", ""), path, _commands);
+            var baseName = Path.GetFileNameWithoutExtension(name);
+            var result = new WPFDataTypes.Version(baseName, path, _commands);
             Add(result);
             return result;
         }
