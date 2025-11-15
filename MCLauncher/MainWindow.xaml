@@ -7,6 +7,7 @@
         mc:Ignorable="d"
         Title="Minecraft Version Manager" Height="450" Width="800">
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
         <CollectionViewSource
             x:Key="versionListViewRelease"
             IsLiveFilteringRequested="True"
@@ -33,9 +34,9 @@
                     <RowDefinition />
                     <RowDefinition />
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding DisplayName}" FontWeight="Bold" />
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding DisplayName}" FontWeight="Bold" Margin="0,0,0,2" />
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding DisplayInstallStatus}" />
-                <Button x:Name="DownloadButton" Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Padding="20,0" Content="Download" Command="{Binding DownloadCommand}" CommandParameter="{Binding}" />
+                <Button x:Name="DownloadButton" Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Padding="20,0" Content="Download" Command="{Binding DownloadCommand}" CommandParameter="{Binding}" ToolTip="Download and install this version" />
             </Grid>
         </DataTemplate>
         <DataTemplate x:Key="templateVersionInstalled" DataType="{x:Type local:Version}">
@@ -49,10 +50,10 @@
                     <RowDefinition />
                     <RowDefinition />
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding DisplayName}" FontWeight="Bold" />
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding DisplayName}" FontWeight="Bold" Margin="0,0,0,2" />
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding DisplayInstallStatus}" />
-                <Button x:Name="RemoveButton" Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Padding="20,0" Content="Remove" Command="{Binding RemoveCommand}" CommandParameter="{Binding}" />
-                <Button x:Name="DownloadButton" Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" Padding="20,0" Margin="2,0,0,0" Content="Launch" Command="{Binding LaunchCommand}" CommandParameter="{Binding}" />
+                <Button x:Name="RemoveButton" Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Padding="20,0" Content="Remove" Command="{Binding RemoveCommand}" CommandParameter="{Binding}" ToolTip="Uninstall this version from this PC" />
+                <Button x:Name="DownloadButton" Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" Padding="20,0" Margin="2,0,0,0" Content="Launch" Command="{Binding LaunchCommand}" CommandParameter="{Binding}" ToolTip="Register and launch Minecraft for this version" />
             </Grid>
         </DataTemplate>
         <DataTemplate x:Key="templateVersionDownloading" DataType="{x:Type local:Version}">
@@ -71,7 +72,7 @@
                 <Canvas Name="progressSizeHack" Grid.Row="2" Grid.Column="0" Height="12">
                     <ProgressBar Width="{Binding Path=ActualWidth, ElementName=progressSizeHack, Mode=OneWay}" Height="{Binding Path=ActualHeight, ElementName=progressSizeHack, Mode=OneWay}" Minimum="0" Maximum="{Binding StateChangeInfo.TotalSize}" Value="{Binding StateChangeInfo.DownloadedBytes}" IsIndeterminate="{Binding StateChangeInfo.IsProgressIndeterminate}" />
                 </Canvas>
-                <Button Grid.Row="2" Grid.Column="1" Content="X" Width="20" Margin="10 0 0 0" Command="{Binding StateChangeInfo.CancelCommand}" />
+                <Button Grid.Row="2" Grid.Column="1" Content="X" Width="20" Margin="10 0 0 0" Command="{Binding StateChangeInfo.CancelCommand}" ToolTip="Cancel this operation" />
             </Grid>
         </DataTemplate>
         <ControlTemplate x:Key="templateVersionList" TargetType="ContentControl">
@@ -102,15 +103,18 @@
         </Grid.RowDefinitions>
         <Menu Grid.Row="0" IsMainMenu="True" Background="Transparent">
             <MenuItem Header="_File">
-                <MenuItem Header="Open log file" Click="MenuItemOpenLogFileClicked" />
-                <MenuItem Header="Open launcher data folder in Explorer" Click="MenuItemOpenDataDirClicked"/>
-                <MenuItem Header="_Import APPX file" Click="ImportButtonClicked" />
+                <MenuItem Header="Open log file" Command="{Binding OpenLogFileCommand}" ToolTip="Open Log.txt in your default text editor" />
+                <MenuItem Header="Open launcher data folder in Explorer" Command="{Binding OpenDataDirCommand}" ToolTip="Open the folder where the launcher stores its data"/>
+                <MenuItem Header="Open GDK Creator folder (Stable)" Command="{Binding OpenGdkCreatorStableCommand}" ToolTip="Open the folder for stable GDK Creator builds" />
+                <MenuItem Header="Open GDK Creator folder (Preview)" Command="{Binding OpenGdkCreatorPreviewCommand}" ToolTip="Open the folder for preview GDK Creator builds" />
+                <MenuItem Header="_Import package (APPX/MSIXVC)" Command="{Binding ImportPackageCommand}" ToolTip="Import a local APPX/MSIXVC package as a version" />
             </MenuItem>
             <MenuItem Header="_Options">
-                <MenuItem Header="Delete APPX after download to save space" IsCheckable="True" Name="DeleteAppxAfterDownloadOption" Checked="DeleteAppxAfterDownloadCheck_Changed" Unchecked="DeleteAppxAfterDownloadCheck_Changed" IsChecked="{Binding UserPrefs.DeleteAppxAfterDownload }" />
-                <MenuItem Header="Uninstall all versions" Name="CleanupForMicrosoftStoreReinstall" Click="MenuItemCleanupForMicrosoftStoreReinstallClicked" />
-                <MenuItem Header="Refresh version list" Name="RefreshVersionList" Click="MenuItemRefreshVersionListClicked" />
-                <MenuItem Header="Set version list endpoint..." Name="SetVersionListEndpoint" Click="MenuItemSetVersionListEndpointClicked" />
+                <MenuItem Header="Delete package after download to save space" IsCheckable="True" Name="DeleteAppxAfterDownloadOption" IsChecked="{Binding DeleteAppxAfterDownload}" ToolTip="Delete the downloaded APPX/MSIXVC file after install to save disk space" />
+                <MenuItem Header="Uninstall all versions" Name="CleanupForMicrosoftStoreReinstall" Command="{Binding CleanupForMicrosoftStoreReinstallCommand}" ToolTip="Uninstall all versions installed by this launcher. Worlds and saves are not removed." />
+                <MenuItem Header="Refresh version list" Name="RefreshVersionList" Command="{Binding RefreshVersionListCommand}" ToolTip="Reload the version list from the internet and cache" />
+                <MenuItem Header="Set version list endpoint..." Name="SetVersionListEndpoint" Click="MenuItemSetVersionListEndpointClicked" ToolTip="Change the URL used to fetch the version list" />
+                <MenuItem Header="Sign in (fetch Store tokens)" Name="SignIn" Command="{Binding SignInCommand}" ToolTip="Sign in to retrieve Microsoft Store tokens for Beta/Preview downloads" />
             </MenuItem>
         </Menu>
         <TabControl Grid.Row="1" Margin="0,5,0,0" BorderThickness="0,1,0,0" Padding="0" Width="Auto">
@@ -134,14 +138,14 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <CheckBox Grid.Row="0" Grid.Column="0" Name="ShowInstalledVersionsOnlyCheckbox" Content="Show installed versions only" Checked="ShowInstalledVersionsOnlyCheckbox_Changed" Unchecked="ShowInstalledVersionsOnlyCheckbox_Changed" IsChecked="{Binding UserPrefs.ShowInstalledOnly }" />
-            <Grid Name="LoadingProgressGrid" Grid.Row="0" Grid.Column="2">
+            <CheckBox Grid.Row="0" Grid.Column="0" Name="ShowInstalledVersionsOnlyCheckbox" Content="Show installed versions only" IsChecked="{Binding ShowInstalledOnly}" ToolTip="If checked, only installed or currently changing versions are shown in each tab." />
+            <Grid Name="LoadingProgressGrid" Grid.Row="0" Grid.Column="2" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <Label Grid.Row="0" Grid.Column="0" Name="LoadingProgressLabel" Content="Nothing" Padding="0,0,0,0"/>
-                <ProgressBar Grid.Row="0" Grid.Column="1" Name="LoadingProgressBar" Width="100" Margin="5,0,0,0" Maximum="3" Value="2"/>
+                <Label Grid.Row="0" Grid.Column="0" Name="LoadingProgressLabel" Content="{Binding LoadingProgressText}" Padding="0,0,0,0"/>
+                <ProgressBar Grid.Row="0" Grid.Column="1" Name="LoadingProgressBar" Width="100" Margin="5,0,0,0" Maximum="3" Value="{Binding LoadingProgressValue}"/>
             </Grid>
         </Grid>
     </Grid>
