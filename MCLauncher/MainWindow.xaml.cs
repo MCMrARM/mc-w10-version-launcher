@@ -967,10 +967,11 @@ namespace MCLauncher {
             Process.Start(@"explorer.exe", Directory.GetCurrentDirectory());
         }
 
-        private void MenuItemCleanupForMicrosoftStoreReinstallClicked(object sender, RoutedEventArgs e) {
+        private void MenuItemUninstallAllVersionsClicked(object sender, RoutedEventArgs e) {
             var result = MessageBox.Show(
-                "Versions of Minecraft installed by the launcher will be uninstalled.\n" +
-                    "This will allow you to reinstall Minecraft from Microsoft Store. Your data (worlds, etc.) won't be removed.\n\n" +
+                "All versions of Minecraft managed by the launcher will be unregistered and deleted.\n" +
+                    "Your data (worlds, etc.) won't be removed.\n\n" +
+                    "Note: If you just want to reinstall Minecraft from the Store, and don't want to delete your launcher-managed versions, you can use the \"Cleanup for Store reinstall\" option instead.\n\n" +
                     "Are you sure you want to continue?",
                 "Uninstall all versions",
                 MessageBoxButton.OKCancel
@@ -1004,6 +1005,56 @@ namespace MCLauncher {
             dialog.OnEndpointChanged += onEndpointChangedHandler;
 
             dialog.Show();
+        }
+
+        private string buildDataLocationMessage(string displayName, string packageFamily) {
+            var message = "Data for " + displayName + ":";
+            var locations = LocateMinecraftWorlds(packageFamily);
+            if (locations.Count == 0) {
+                return message + "\n - (no folders with worlds found)";
+            }
+
+            foreach (var loc in locations) {
+                message += $"\n - {loc.Value} worlds found in {loc.Key}";
+            }
+            return message;
+        }
+
+        private void MenuItemFindMyDataClicked(object sender, RoutedEventArgs e) {
+            var locations = LocateMinecraftWorlds(MinecraftPackageFamilies.MINECRAFT);
+
+            MessageBox.Show(
+                buildDataLocationMessage("Release", MinecraftPackageFamilies.MINECRAFT) + "\n\n" +
+                buildDataLocationMessage("Preview", MinecraftPackageFamilies.MINECRAFT_PREVIEW) + "\n\n" +
+                "Note: Data folders containing no worlds are not shown.",
+                "Minecraft data locations"
+            );
+        }
+
+        private async void MenuItemCleanupForStoreInstallClicked(object sender, RoutedEventArgs e) {
+            var dialog = new ProgressDialog();
+            dialog.Owner = this;
+            bool allowClose = false;
+            dialog.Closing += (object sender_, CancelEventArgs e_) => {
+                if (!allowClose) {
+                    e_.Cancel = true;
+                }
+            };
+
+            dialog.Show();
+
+            Debug.WriteLine("Cleaning up system");
+            try {
+                await UnregisterPackage(MinecraftPackageFamilies.MINECRAFT, null, skipBackup: false);
+                await UnregisterPackage(MinecraftPackageFamilies.MINECRAFT_PREVIEW, null, skipBackup: false);
+            } catch (Exception ex) {
+                Debug.WriteLine("Error cleaning up: " + ex.Message);
+                MessageBox.Show("An error occurred while cleaning up. Check the log for details.", "Error");
+            }
+            Debug.WriteLine("Done cleaning up");
+            allowClose = true;
+            dialog.Close();
+            MessageBox.Show("Cleanup completed. You should now be able to install Minecraft from Microsoft Store", "Cleanup completed");
         }
     }
 

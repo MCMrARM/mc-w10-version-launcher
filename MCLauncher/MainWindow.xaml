@@ -105,10 +105,12 @@
                 <MenuItem Header="Open log file" Click="MenuItemOpenLogFileClicked" />
                 <MenuItem Header="Open launcher data folder in Explorer" Click="MenuItemOpenDataDirClicked"/>
                 <MenuItem Header="_Import APPX file" Click="ImportButtonClicked" />
+                <MenuItem Header="Find my data" Click="MenuItemFindMyDataClicked" />
             </MenuItem>
             <MenuItem Header="_Options">
                 <MenuItem Header="Delete APPX after download to save space" IsCheckable="True" Name="DeleteAppxAfterDownloadOption" Checked="DeleteAppxAfterDownloadCheck_Changed" Unchecked="DeleteAppxAfterDownloadCheck_Changed" IsChecked="{Binding UserPrefs.DeleteAppxAfterDownload }" />
-                <MenuItem Header="Uninstall all versions" Name="CleanupForMicrosoftStoreReinstall" Click="MenuItemCleanupForMicrosoftStoreReinstallClicked" />
+                <MenuItem Header="Uninstall all versions" Name="CleanupForMicrosoftStoreReinstall" Click="MenuItemUninstallAllVersionsClicked" />
+                <MenuItem Header="Cleanup for installing Minecraft from Microsoft Store" Name="CleanupForMicrosoftStoreInstall" Click="MenuItemCleanupForStoreInstallClicked" />
                 <MenuItem Header="Refresh version list" Name="RefreshVersionList" Click="MenuItemRefreshVersionListClicked" />
                 <MenuItem Header="Set version list endpoint..." Name="SetVersionListEndpoint" Click="MenuItemSetVersionListEndpointClicked" />
             </MenuItem>
