@@ -10,16 +10,16 @@ namespace MCLauncher {
     using System.Diagnostics;
     using System.IO;
     using System.IO.Compression;
-    using System.Text.RegularExpressions;
+    using System.Linq;
     using System.Threading;
     using System.Windows.Data;
     using Windows.ApplicationModel;
     using Windows.Foundation;
     using Windows.Management.Core;
     using Windows.Management.Deployment;
-    using Windows.Media.Core;
     using Windows.Storage;
     using Windows.System;
+    using Windows.UI.Xaml.Controls;
     using WPFDataTypes;
 
     /// <summary>
@@ -450,6 +450,13 @@ namespace MCLauncher {
                 return;
             _hasLaunchTask = true;
             Task.Run(async () => {
+                v.StateChangeInfo = new VersionStateChangeInfo(VersionState.MovingData);
+                if (!MoveMinecraftData(v.GamePackageFamily, v.PackageType)) {
+                    Debug.WriteLine("Data restore error, aborting launch");
+                    v.StateChangeInfo = null;
+                    _hasLaunchTask = false;
+                    return;
+                }
                 v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Registering);
                 string gameDir = Path.GetFullPath(v.GameDirectory);
                 if (v.PackageType == PackageType.GDK) {
@@ -514,32 +521,125 @@ namespace MCLauncher {
             await src.Task;
         }
 
+        private int GetWorldCountInDataDir(string dataDir) {
+            var worldsFolder = Path.Combine(dataDir, "games", "com.mojang", "minecraftWorlds");
+            if (!Directory.Exists(worldsFolder)) {
+                return 0;
+            }
+            return Directory.GetDirectories(worldsFolder).Length;
+        }
+
+        private Dictionary<string, int> LocateMinecraftWorlds(string packageFamily) {
+            List<string> candidates = new List<string>();
+
+            var uwpDataDir = GetMinecraftUWPDataDir(packageFamily);
+            if (uwpDataDir != "") {
+                candidates.Add(uwpDataDir);
+            }
+
+            candidates.AddRange(GetMinecraftGDKDataDirs(packageFamily));
+            candidates.Add(GetBackupMinecraftDataDir());
+
+            var worldLocations = new Dictionary<string, int>();
+            foreach(var dataDir in candidates) {
+                Debug.WriteLine("Checking for worlds in: " + dataDir);
+                var worldsFolder = Path.Combine(dataDir, "games", "com.mojang", "minecraftWorlds");
+                if (!Directory.Exists(worldsFolder)) {
+                    Debug.WriteLine("No worlds found in: " + worldsFolder);
+                    continue;
+                }
+                int worlds = Directory.GetDirectories(worldsFolder).Length;
+                if (worlds > 0) {
+                    worldLocations[dataDir] = worlds;
+                    Debug.WriteLine("Found " + worlds + " worlds in: " + worldsFolder);
+                } else {
+                    Debug.WriteLine("No worlds found in: " + worldsFolder);
+                }
+            }
+
+            return worldLocations;
+        }
+
         private string GetBackupMinecraftDataDir() {
+            //TODO: this really ought to be separated by package family
             string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string tmpDir = Path.Combine(localAppData, "TmpMinecraftLocalState");
             return tmpDir;
         }
 
-        private void BackupMinecraftDataForRemoval(string packageFamily) {
+        private string GetMinecraftUWPRootDir(string packageFamily) {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Packages",
+                packageFamily
+            );
+        }
+
+        private string GetMinecraftUWPDataDir(string packageFamily) {
+            return Path.Combine(GetMinecraftUWPRootDir(packageFamily), "LocalState");
+        }
+
+        private string GetMinecraftGDKRootDir(string packageFamily) {
+            string infix;
+            switch(packageFamily) {
+                case MinecraftPackageFamilies.MINECRAFT:
+                    infix = "Minecraft Bedrock";
+                    break;
+                case MinecraftPackageFamilies.MINECRAFT_PREVIEW:
+                    infix = "Minecraft Bedrock Preview";
+                    break;
+                default: throw new ArgumentException("Invalid Minecraft package family: " + packageFamily);
+            }
+            var gdkRootDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                infix
+            );
+            return gdkRootDir;
+        }
+
+        private List<string> GetMinecraftGDKDataDirs(string packageFamily) {
+            var parentDir = Path.Combine(
+                GetMinecraftGDKRootDir(packageFamily),
+                "Users"
+            );
+            var results = new List<string>();
+
+            if (!Directory.Exists(parentDir)) {
+                Debug.WriteLine("GDK Users directory doesn't exist: " + parentDir);
+                return results;
+            }
+
+            results.AddRange(Directory.EnumerateDirectories(parentDir));
+
+            return results;
+        }
+
+        private bool BackupMinecraftDataForRemoval(string packageFamily) {
             ApplicationData data;
             try {
                 data = ApplicationDataManager.CreateForPackageFamily(packageFamily);
             }catch (FileNotFoundException e) {
                 Debug.WriteLine("BackupMinecraftDataForRemoval: Application data not found for package family " + packageFamily + ": " + e.ToString());
-                Debug.WriteLine("Hopefully this means there's no data to back up ???");
-                return;
+                Debug.WriteLine("This should mean the package isn't installed, so we don't need to backup the data");
+                return true;
             }
             string tmpDir = GetBackupMinecraftDataDir();
             if (Directory.Exists(tmpDir)) {
-                //TODO: this might happen if two different versions
-                //try to be uninstalled at the same time???
-                Debug.WriteLine("BackupMinecraftDataForRemoval error: " + tmpDir + " already exists");
-                Process.Start("explorer.exe", tmpDir);
-                MessageBox.Show("The temporary directory for backing up MC data already exists. This probably means that we failed last time backing up the data. Please back the directory up manually.");
-                throw new Exception("Temporary dir exists");
+                if (GetWorldCountInDataDir(tmpDir) > 0) {
+                    //TODO: this might happen if two different versions
+                    //try to be uninstalled at the same time???
+                    Debug.WriteLine("BackupMinecraftDataForRemoval error: " + tmpDir + " already exists");
+                    Process.Start("explorer.exe", tmpDir);
+                    MessageBox.Show("The temporary directory for backing up MC data already exists. This probably means that we failed last time backing up the data. Please back the directory up manually.");
+                    return false;
+                }
+                Directory.Delete(tmpDir, recursive: true);
             }
             Debug.WriteLine("Moving Minecraft data to: " + tmpDir);
+            Directory.Delete(tmpDir, recursive: true);
             Directory.Move(data.LocalFolder.Path, tmpDir);
+
+            return true;
         }
 
         private void RestoreMove(string from, string to) {
@@ -563,26 +663,128 @@ namespace MCLauncher {
             }
         }
 
-        private void RestoreMinecraftDataFromReinstall(string packageFamily) {
+        private bool RestoreUWPData(string src, string uwpDataDir, string uwpParent) {
+            Debug.WriteLine("Restoring Minecraft data from src dir " + src + " to " + uwpDataDir);
+            try {
+                if (Directory.Exists(uwpDataDir)) {
+                    Debug.WriteLine("Deleting: " + uwpDataDir);
+                    Directory.Delete(uwpDataDir, recursive: true);
+                }
+                if (!Directory.Exists(uwpParent)) {
+                    Debug.WriteLine("Creating parent dir: " + uwpParent);
+                    Directory.CreateDirectory(uwpParent);
+                }
+                Debug.WriteLine("Restoring files");
+                RestoreMove(src, uwpDataDir);
+                Debug.WriteLine("Deleting src dir: " + src);
+                Directory.Delete(src, true);
+                Debug.WriteLine("Restore complete");
+                return true;
+            } catch (Exception e) {
+                Debug.WriteLine("Failed restoring Minecraft data from " + src + ": " + e.ToString());
+                MessageBox.Show("Failed to move Minecraft data from:\n"
+                    + src
+                    + "\nto:\n"
+                    + uwpDataDir
+                    + "\n\nCheck the log file for more information.", "Data restore error"
+                );
+                return false;
+            }
+        }
+
+        private bool MoveMinecraftData(string packageFamily, PackageType destinationType) {
+            var dataLocations = LocateMinecraftWorlds(packageFamily);
+            if (dataLocations.Count == 0) {
+                Debug.WriteLine("No Minecraft data found to restore or link");
+                return true;
+            }
+
+            if (dataLocations.Count > 1) {
+                var messageString = "";
+                foreach (var loc in dataLocations) {
+                    messageString += $"\n - {loc.Key}: {loc.Value} worlds";
+                }
+                Debug.WriteLine("Can't automatically restore Minecraft data - multiple locations with worlds found:" + messageString);
+                MessageBox.Show(
+                    "Unable to automatically restore Minecraft worlds for UWP, because multiple locations with worlds were found:"
+                        + messageString
+                        + "\n\nPlease resolve the conflicts manually by copying worlds into the desired location.",
+                    "Data restore error"
+                );
+                return false;
+            }
+
+            string dataLocation = dataLocations.Keys.First();
+
             string tmpDir = GetBackupMinecraftDataDir();
-            if (!Directory.Exists(tmpDir))
-                return;
-            var data = ApplicationDataManager.CreateForPackageFamily(packageFamily);
-            Debug.WriteLine("Moving backup Minecraft data to: " + data.LocalFolder.Path);
-            RestoreMove(tmpDir, data.LocalFolder.Path);
-            Directory.Delete(tmpDir, true);
+            string uwpDataDir = GetMinecraftUWPDataDir(packageFamily);
+            string uwpParent = GetMinecraftUWPRootDir(packageFamily);
+            if (dataLocation == tmpDir) {
+                //we don't know where GDK will want to store this due to the user folder names containing some kind of UID
+                //so we restore to UWP location and let Minecraft handle the GDK migration by itself
+                Debug.WriteLine("Restoring Minecraft data from backup dir " + tmpDir + " to " + uwpDataDir);
+                if (!RestoreUWPData(tmpDir, uwpDataDir, uwpParent)) {
+                    return false;
+                }
+                dataLocation = uwpDataDir;
+            }
+
+            if (destinationType == PackageType.GDK && dataLocation == uwpDataDir) {
+                //TODO: not sure it's a good idea to let the game migrate UWP data on its own,
+                //considering how many people have had problems with it???
+                Debug.WriteLine("Deleting uwpMigration.dat, so GDK Minecraft will migrate data from UWP next time it's used");
+                var uwpMigrationDat = Path.Combine(
+                    GetMinecraftGDKRootDir(packageFamily),
+                    "games",
+                    "com.mojang",
+                    "uwpMigration.dat"
+                );
+                Debug.WriteLine("uwpMigration.dat path: " + uwpMigrationDat);
+                try {
+                    File.Delete(uwpMigrationDat);
+                    return true;
+                } catch (Exception e) {
+                    Debug.WriteLine("Failed deleting uwpMigration.dat: " + e.ToString());
+                    MessageBox.Show(
+                        "Failed deleting uwpMigration.dat file.\n" +
+                        "Your worlds will be visible to UWP versions, but GDK versions won't see them unless you move them back manually.\n\n" +
+                        "Please delete the following file manually: " + uwpMigrationDat +
+                        "\n\nAlternatively, you can copy your worlds back to the GDK folder next time you run a GDK version." +
+                        "\nYour worlds are currently located at: " + uwpDataDir +
+                        "Data migration notice"
+                    );
+                    return false;
+                }
+            } else if (destinationType == PackageType.UWP && dataLocation != uwpDataDir) {
+                //this should mean that we found data in a GDK location, so move it for UWP
+                var gdkDataDir = dataLocations.Keys.First();
+                if (!RestoreUWPData(gdkDataDir, uwpDataDir, uwpParent)) {
+                    return false;
+                }
+
+                return true;
+            } else {
+                Debug.WriteLine("Minecraft data already in the right place " + dataLocation);
+                return true;
+            }
         }
 
         private async Task RemovePackage(Package pkg, string packageFamily, Version version, bool skipBackup) {
             Debug.WriteLine("Removing package: " + pkg.Id.FullName);
             if (!pkg.IsDevelopmentMode) {
                 if (!skipBackup) {
-                    BackupMinecraftDataForRemoval(packageFamily);
+                    //TODO: It would be nice to skip this if we're uninstalling a GDK version
+                    //however, the package being removed may not be the one passed in the version parameter
+                    //since the version parameter is only used for displaying UI status
+                    if (!BackupMinecraftDataForRemoval(packageFamily)) {
+                        throw new Exception("Failed backing up Minecraft data before uninstalling package");
+                    }
                 }
-                await DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, 0), version);
+                //TODO: this will bomb data for other users. We only currently backup data for the current user
+                await DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, RemovalOptions.RemoveForAllUsers), version);
             } else {
                 Debug.WriteLine("Package is in development mode");
-                await DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, RemovalOptions.PreserveApplicationData), version);
+                await DeploymentProgressWrapper(new PackageManager().RemovePackageAsync(pkg.Id.FullName, RemovalOptions.PreserveApplicationData | RemovalOptions.RemoveForAllUsers), version);
             }
             Debug.WriteLine("Removal of package done: " + pkg.Id.FullName);
         }
@@ -617,7 +819,6 @@ namespace MCLauncher {
             Debug.WriteLine("Manifest path: " + manifestPath);
             await DeploymentProgressWrapper(new PackageManager().RegisterPackageAsync(new Uri(manifestPath), null, DeploymentOptions.DevelopmentMode), version);
             Debug.WriteLine("App re-register done!");
-            RestoreMinecraftDataFromReinstall(packageFamily);
         }
 
         private void InvokeDownload(Version v) {
@@ -808,8 +1009,8 @@ namespace MCLauncher {
 
     struct MinecraftPackageFamilies
     {
-        public static readonly string MINECRAFT = "Microsoft.MinecraftUWP_8wekyb3d8bbwe";
-        public static readonly string MINECRAFT_PREVIEW = "Microsoft.MinecraftWindowsBeta_8wekyb3d8bbwe";
+        public const string MINECRAFT = "Microsoft.MinecraftUWP_8wekyb3d8bbwe";
+        public const string MINECRAFT_PREVIEW = "Microsoft.MinecraftWindowsBeta_8wekyb3d8bbwe";
     }
 
     namespace WPFDataTypes {
@@ -954,7 +1155,8 @@ namespace MCLauncher {
             CleaningUp,
             Staging,
             Decrypting,
-            Moving
+            Moving,
+            MovingData
         };
 
         public class VersionStateChangeInfo : NotifyPropertyChangedBase {
@@ -1009,6 +1211,7 @@ namespace MCLauncher {
                         case VersionState.Staging: return "Staging package... (this might take a few minutes)";
                         case VersionState.Decrypting: return "Copying decrypted Minecraft.Windows.exe...";
                         case VersionState.Moving: return "Copying other game files...";
+                        case VersionState.MovingData: return "Restoring Minecraft worlds...";
                         default: return "Wtf is happening? ...";
                     }
                 }
