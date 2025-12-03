@@ -217,6 +217,7 @@ namespace MCLauncher {
                 }
 
                 if (success) {
+                    versionEntry.StateChangeInfo = null;
                     versionEntry.UpdateInstallStatus();
                 } else {
                     _versions.Remove(versionEntry);
@@ -276,167 +277,192 @@ namespace MCLauncher {
                 return false;
             }
             _hasGdkExtractTask = true;
-            // XVC are encrypted containers, I don't currently know of any way to extract them to an arbitrary directory
-            // For now we just stage the package in XboxGames, and then move the files to the launcher data directory
-
-            versionEntry.StateChangeInfo = new VersionStateChangeInfo(VersionState.Staging);
-
-            var packageManager = new PackageManager();
-            var xboxGamesPath = isPreview ? "C:\\XboxGames\\Minecraft Preview for Windows" : "C:\\XboxGames\\Minecraft for Windows";
-
-            //make sure XboxGames is cleared
-            Debug.WriteLine("Clearing existing XboxGames Minecraft installation");
             try {
-                await UnregisterPackage(versionEntry.GamePackageFamily, versionEntry, skipBackup: false);
-            } catch (Exception ex) {
-                InstallError(
-                    "The existing XboxGames Minecraft installation could not be removed. Please make sure Minecraft is not running and try again.",
-                    "Failed clearing XboxGames Minecraft installation",
-                    filePath,
-                    ex
-                );
-                return false;
-            }
+                // XVC are encrypted containers, I don't currently know of any way to extract them to an arbitrary directory
+                // For now we just stage the package in XboxGames, and then move the files to the launcher data directory
 
-            try {
-                await DeploymentProgressWrapper(packageManager.StagePackageAsync(new Uri(filePath), null), versionEntry);
-            } catch (Exception ex) {
-                InstallError(
-                    "File seems to be corrupted or not an MSIXVC file.",
-                    "Failed staging MSIXVC",
-                    filePath,
-                    ex
-                );
-                return false;
-            }
+                versionEntry.StateChangeInfo = new VersionStateChangeInfo(VersionState.Staging);
 
-            //TODO: hopefully this never gets put anywhere except C:\, because we don't currently have a way to get the staging location
-            var expectedPath = Path.Combine(xboxGamesPath, "Content");
-            var exeSrcPath = Path.Combine(expectedPath, "Minecraft.Windows.exe");
-            if (!Directory.Exists(expectedPath)) {
-                InstallError(
-                    "Didn't find installation expected at " + expectedPath + "\nMaybe your XboxGames folder is in a different location?",
-                    "Expected XboxGames Minecraft directory not found" + expectedPath,
-                    filePath,
-                    null
-                );
-                return false;
-            }
-            if (!File.Exists(exeSrcPath)) {
-                InstallError(
-                    "Didn't find Minecraft executable at " + exeSrcPath,
-                    "Expected XboxGames Minecraft executable not found: " + exeSrcPath,
-                    filePath,
-                    null
-                );
-                return false;
-            }
+                var packageManager = new PackageManager();
 
-            versionEntry.StateChangeInfo.VersionState = VersionState.Decrypting;
-
-            var exeTmpDir = Path.GetFullPath(@"tmp");
-            if (!Directory.Exists(exeTmpDir)) {
+                //make sure XboxGames is cleared
+                Debug.WriteLine("Clearing existing XboxGames Minecraft installation");
                 try {
-                    Directory.CreateDirectory(exeTmpDir);
-                } catch (IOException ex) {
+                    await UnregisterPackage(versionEntry.GamePackageFamily, versionEntry, skipBackup: false);
+                } catch (Exception ex) {
                     InstallError(
-                        "The temporary directory for extracting the Minecraft executable could not be created at " + exeTmpDir,
-                        "Failed to create tmp dir for exe extraction: " + exeTmpDir,
+                        "The existing XboxGames Minecraft installation could not be removed. Please make sure Minecraft is not running and try again.",
+                        "Failed clearing XboxGames Minecraft installation",
                         filePath,
                         ex
                     );
                     return false;
                 }
-            }
-            var uuid = Guid.NewGuid().ToString();
-            //Use a different tmp path to make sure we don't copy half-done files
-            //UUID makes sure we don't copy the leftovers of a different, failed installation
-            var exeTmpPath = Path.Combine(exeTmpDir, "Minecraft.Windows_" + uuid + ".exe");
-            var exePartialTmpPath = exeTmpPath + ".tmp";
 
-            var exeDstPath = Path.Combine(Path.GetFullPath(directory), "Minecraft.Windows.exe");
+                try {
+                    await DeploymentProgressWrapper(packageManager.StagePackageAsync(new Uri(filePath), null), versionEntry);
+                } catch (Exception ex) {
+                    InstallError(
+                        "Failed to stage package.\n" +
+                            "This may mean that the file is damaged, not an MSIXVC file. Please check the integrity of the file.\n\n" +
+                            "However, this error might also happen if you've never installed a GDK version of Minecraft from the Store before,\n" +
+                            "as the launcher relies on the Store to install the keys needed to decrypt the installation package.\n" +
+                            "Please ensure that you've installed " + (isPreview ? "Minecraft Preview" : "Minecraft") + " from the Store before installing GDK versions using the launcher.",
+                        "Failed staging MSIXVC",
+                        filePath,
+                        ex
+                    );
+                    return false;
+                }
 
-            //TODO: these paths probably need to be escaped
-            var command = $@"Invoke-CommandInDesktopPackage `
+                string installPath = "";
+                foreach (var pkg in new PackageManager().FindPackages(versionEntry.GamePackageFamily)) {
+                    if (installPath != "") {
+                        InstallError(
+                            "Minecraft is installed in multiple places, and the launcher doesn't know where to copy files from.\n" +
+                            "This is probably because another user has the game installed.",
+                            "Multiple locations found for staged MSIXVC: " + installPath + ", " + pkg.InstalledLocation.Path,
+                            filePath,
+                            null
+                        );
+                        return false;
+                    }
+                    installPath = pkg.InstalledLocation.Path;
+                }
+                Debug.WriteLine("Detected staging path: " + installPath);
+                string resolvedPath = LinkResolver.Resolve(installPath);
+                Debug.WriteLine("Symlink resolved as " + resolvedPath);
+                installPath = resolvedPath;
+
+                var exeSrcPath = Path.Combine(installPath, "Minecraft.Windows.exe");
+                if (!Directory.Exists(installPath)) {
+                    InstallError(
+                        "Didn't find installation expected at " + installPath + "\nMaybe your XboxGames folder is in a different location?",
+                        "Expected XboxGames Minecraft directory not found" + installPath,
+                        filePath,
+                        null
+                    );
+                    return false;
+                }
+                if (!File.Exists(exeSrcPath)) {
+                    InstallError(
+                        "Didn't find Minecraft executable at " + exeSrcPath,
+                        "Expected XboxGames Minecraft executable not found: " + exeSrcPath,
+                        filePath,
+                        null
+                    );
+                    return false;
+                }
+
+                versionEntry.StateChangeInfo.VersionState = VersionState.Decrypting;
+
+                var exeTmpDir = Path.GetFullPath(@"tmp");
+                if (!Directory.Exists(exeTmpDir)) {
+                    try {
+                        Directory.CreateDirectory(exeTmpDir);
+                    } catch (IOException ex) {
+                        InstallError(
+                            "The temporary directory for extracting the Minecraft executable could not be created at " + exeTmpDir,
+                            "Failed to create tmp dir for exe extraction: " + exeTmpDir,
+                            filePath,
+                            ex
+                        );
+                        return false;
+                    }
+                }
+                var uuid = Guid.NewGuid().ToString();
+                //Use a different tmp path to make sure we don't copy half-done files
+                //UUID makes sure we don't copy the leftovers of a different, failed installation
+                var exeTmpPath = Path.Combine(exeTmpDir, "Minecraft.Windows_" + uuid + ".exe");
+                var exePartialTmpPath = exeTmpPath + ".tmp";
+
+                var exeDstPath = Path.Combine(Path.GetFullPath(directory), "Minecraft.Windows.exe");
+
+                //TODO: these paths probably need to be escaped
+                var command = $@"Invoke-CommandInDesktopPackage `
                             -PackageFamilyName ""{versionEntry.GamePackageFamily}"" `
                             -App Game `
                             -Command ""powershell.exe"" `
                             -Args \""-Command Copy-Item '{exeSrcPath}' '{exePartialTmpPath}' -Force; Move-Item '{exePartialTmpPath}' '{exeTmpPath}'\""
                         ";
-            Debug.WriteLine("Decrypt command: " + command);
+                Debug.WriteLine("Decrypt command: " + command);
 
-            var processInfo = new ProcessStartInfo {
-                FileName = "powershell.exe",
-                Arguments = command,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false
-            };
+                var processInfo = new ProcessStartInfo {
+                    FileName = "powershell.exe",
+                    Arguments = command,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false
+                };
 
-            Debug.WriteLine("Copying decrypted exe");
-            try {
-                var process = Process.Start(processInfo);
-                process.WaitForExit();
-                Debug.WriteLine("Process output:" + process.StandardOutput.ReadToEnd());
-                Debug.WriteLine("Process errors:" + process.StandardError.ReadToEnd());
-            } catch (Exception ex) {
-                InstallError(
-                    "Failed to run PowerShell to copy the Minecraft executable out of the staged package",
-                    "Failed running PowerShell for exe extraction",
-                    filePath,
-                    ex
-                );
-                return false;
+                Debug.WriteLine("Copying decrypted exe");
+                try {
+                    var process = Process.Start(processInfo);
+                    process.WaitForExit();
+                    Debug.WriteLine("Process output:" + process.StandardOutput.ReadToEnd());
+                    Debug.WriteLine("Process errors:" + process.StandardError.ReadToEnd());
+                } catch (Exception ex) {
+                    InstallError(
+                        "Failed to run PowerShell to copy the Minecraft executable out of the staged package",
+                        "Failed running PowerShell for exe extraction",
+                        filePath,
+                        ex
+                    );
+                    return false;
+                }
+
+                for (int i = 0; i < 300 && !File.Exists(exeTmpPath); i++) {
+                    //Give it up to 30 seconds to copy the file
+                    //We can't block on the outcome of Invoke-CommandInDesktopPackage, so we have to poll for the file
+                    //TODO: What if the copy takes longer than that?
+                    await Task.Delay(100);
+                }
+
+                if (!File.Exists(exeTmpPath)) {
+                    Debug.WriteLine("Src path: " + exeSrcPath);
+                    Debug.WriteLine("Tmp path: " + exeTmpPath);
+                    InstallError(
+                        "The Minecraft executable could not be copied out of the staged package.\n" +
+                            "This is usually due to the game license not being installed for your Windows user account.\n\n" +
+                            "Please ensure that you've installed " + (isPreview ? "Minecraft Preview" : "Minecraft") + " from the Store before using this launcher.",
+                        "PowerShell subprocess didn't seem to copy the exe in time",
+                        filePath,
+                        null
+                    );
+                    return false;
+                }
+                Debug.WriteLine("Minecraft executable decrypted successfully");
+
+                versionEntry.StateChangeInfo.VersionState = VersionState.Moving;
+                //TODO: this could fail if the launcher is on a different drive than C: ?
+                try {
+                    Debug.WriteLine("Moving staged files");
+                    Directory.Move(installPath, directory);
+
+                    Debug.WriteLine("Moving decrypted exe into place");
+                    File.Delete(exeDstPath);
+                    File.Move(exeTmpPath, exeDstPath);
+                } catch (IOException ex) {
+                    InstallError(
+                        "Failed copying/moving game files to the destination folder",
+                        "Failed moving game files to destination",
+                        filePath,
+                        ex
+                    );
+                    return false;
+                }
+
+                Debug.WriteLine("Cleaning up XboxGames");
+                //we already created a backup earlier, so a new attempt would just get in the way
+                await UnregisterPackage(versionEntry.GamePackageFamily, versionEntry, skipBackup: true);
+
+                Debug.WriteLine("Done importing msixvc: " + filePath);
+                return true;
+
+            } finally {
+                _hasGdkExtractTask = false;
             }
-
-            for (int i = 0; i < 300 && !File.Exists(exeTmpPath); i++) {
-                //Give it up to 30 seconds to copy the file
-                //We can't block on the outcome of Invoke-CommandInDesktopPackage, so we have to poll for the file
-                //TODO: What if the copy takes longer than that?
-                await Task.Delay(100);
-            }
-
-            if (!File.Exists(exeTmpPath)) {
-                Debug.WriteLine("Src path: " + exeSrcPath);
-                Debug.WriteLine("Tmp path: " + exeTmpPath);
-                InstallError(
-                    "The Minecraft executable could not be copied out of the staged package",
-                    "PowerShell subprocess didn't seem to copy the exe in time",
-                    filePath,
-                    null
-                );
-                return false;
-            }
-            Debug.WriteLine("Minecraft executable decrypted successfully");
-
-            versionEntry.StateChangeInfo.VersionState = VersionState.Moving;
-            //TODO: this could fail if the launcher is on a different drive than C: ?
-            try {
-                Debug.WriteLine("Moving staged files");
-                Directory.Move(expectedPath, directory);
-
-                Debug.WriteLine("Moving decrypted exe into place");
-                File.Delete(exeDstPath);
-                File.Move(exeTmpPath, exeDstPath);
-            } catch (IOException ex) {
-                InstallError(
-                    "Failed copying/moving game files to the destination folder",
-                    "Failed moving game files to destination",
-                    filePath,
-                    ex
-                );
-                return false;
-            }
-
-            Debug.WriteLine("Cleaning up XboxGames");
-            //we already created a backup earlier, so a new attempt would just get in the way
-            await UnregisterPackage(versionEntry.GamePackageFamily, versionEntry, skipBackup: true);
-
-            Debug.WriteLine("Done importing msixvc: " + filePath);
-
-            _hasGdkExtractTask = false;
-            return true;
         }
 
         public ICommand LaunchCommand => new RelayCommand((v) => InvokeLaunch((Version)v));
@@ -623,6 +649,11 @@ namespace MCLauncher {
                 Debug.WriteLine("This should mean the package isn't installed, so we don't need to backup the data");
                 return true;
             }
+            if (!Directory.Exists(data.LocalFolder.Path)) {
+                //this is fine only for GDK versions
+                Debug.WriteLine("LocalState folder " + data.LocalFolder.Path + " doesn't exist, so it can't be backed up");
+                return true;
+            }
             string tmpDir = GetBackupMinecraftDataDir();
             if (Directory.Exists(tmpDir)) {
                 if (GetWorldCountInDataDir(tmpDir) > 0) {
@@ -636,7 +667,6 @@ namespace MCLauncher {
                 Directory.Delete(tmpDir, recursive: true);
             }
             Debug.WriteLine("Moving Minecraft data to: " + tmpDir);
-            Directory.Delete(tmpDir, recursive: true);
             Directory.Move(data.LocalFolder.Path, tmpDir);
 
             return true;
@@ -1054,7 +1084,7 @@ namespace MCLauncher {
             Debug.WriteLine("Done cleaning up");
             allowClose = true;
             dialog.Close();
-            MessageBox.Show("Cleanup completed. You should now be able to install Minecraft from Microsoft Store", "Cleanup completed");
+            MessageBox.Show("Cleanup completed. You should now be able to install Minecraft from Microsoft Store.", "Cleanup completed");
         }
     }
 
