@@ -11,7 +11,7 @@
         MinWidth="400"
         WindowStartupLocation="CenterOwner"
         FocusManager.FocusedElement="{Binding ElementName=EndpointTextBox}"
-        Title="Set version list endpoint...">
+        Title="Set version data endpoints...">
     <Grid Margin="5,5,5,5">
         <Grid.Resources>
             <Style TargetType="{x:Type Button}">
@@ -24,6 +24,8 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition />
         </Grid.RowDefinitions>
 
@@ -32,10 +34,13 @@
             <ColumnDefinition />
         </Grid.ColumnDefinitions>
 
-        <Label Content="Set the URL to get versions.json from (empty for default):" Grid.Row="0" Padding="0,5,0,5"/>
+        <Label Content="Legacy UWP version IDs endpoint (empty for default):" Grid.Row="0" Padding="0,5,0,5"/>
         <TextBox Name="EndpointTextBox" Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,5,0,5" />
 
-        <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,5,0,0">
+        <Label Content="GDK package URLs endpoint (empty for default):" Grid.Row="2" Padding="0,5,0,5"/>
+        <TextBox Name="GDKUrlsEndpointTextBox" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="2" Margin="0,5,0,5" />
+
+        <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,5,0,0">
             <Button Name="okButton" Click="okButton_Click" IsDefault="True">OK</Button>
             <Button Name="cancelButton" Click="cancelButton_Click" IsCancel="True">Cancel</Button>
         </StackPanel>

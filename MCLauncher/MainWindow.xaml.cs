@@ -1044,9 +1044,9 @@ namespace MCLauncher {
             Dispatcher.Invoke(LoadVersionList);
         }
 
-        private void onEndpointChangedHandler(object sender, string newEndpoint) {
-            UserPrefs.VersionsApiUWP = newEndpoint;
-            _versions.VersionsApiUWP = newEndpoint == "" ? VERSIONS_API_UWP : newEndpoint;
+        private void onEndpointChangedHandler(object sender, string newUwpIdsEndpoint, string newGdkPackageUrlsEndpoint) {
+            UserPrefs.VersionsApiUWP = newUwpIdsEndpoint == "" ? VERSIONS_API_UWP : newUwpIdsEndpoint;
+            UserPrefs.VersionsApiGDK = newGdkPackageUrlsEndpoint == "" ? VERSIONS_API_GDK : newGdkPackageUrlsEndpoint;
             Dispatcher.Invoke(LoadVersionList);
             RewritePrefs();
         }

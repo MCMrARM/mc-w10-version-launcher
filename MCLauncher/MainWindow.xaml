@@ -104,15 +104,15 @@
             <MenuItem Header="_File">
                 <MenuItem Header="Open log file" Click="MenuItemOpenLogFileClicked" />
                 <MenuItem Header="Open launcher data folder in Explorer" Click="MenuItemOpenDataDirClicked"/>
-                <MenuItem Header="_Import APPX file" Click="ImportButtonClicked" />
-                <MenuItem Header="Find my data" Click="MenuItemFindMyDataClicked" />
+                <MenuItem Header="_Import .appx or .msixvc..." Click="ImportButtonClicked" />
+                <MenuItem Header="Find my Minecraft data" Click="MenuItemFindMyDataClicked" />
             </MenuItem>
             <MenuItem Header="_Options">
-                <MenuItem Header="Delete APPX after download to save space" IsCheckable="True" Name="DeleteAppxAfterDownloadOption" Checked="DeleteAppxAfterDownloadCheck_Changed" Unchecked="DeleteAppxAfterDownloadCheck_Changed" IsChecked="{Binding UserPrefs.DeleteAppxAfterDownload }" />
+                <MenuItem Header="Delete installation packages after download to save space" IsCheckable="True" Name="DeleteAppxAfterDownloadOption" Checked="DeleteAppxAfterDownloadCheck_Changed" Unchecked="DeleteAppxAfterDownloadCheck_Changed" IsChecked="{Binding UserPrefs.DeleteAppxAfterDownload }" />
                 <MenuItem Header="Uninstall all versions" Name="CleanupForMicrosoftStoreReinstall" Click="MenuItemUninstallAllVersionsClicked" />
                 <MenuItem Header="Cleanup for installing Minecraft from Microsoft Store" Name="CleanupForMicrosoftStoreInstall" Click="MenuItemCleanupForStoreInstallClicked" />
                 <MenuItem Header="Refresh version list" Name="RefreshVersionList" Click="MenuItemRefreshVersionListClicked" />
-                <MenuItem Header="Set version list endpoint..." Name="SetVersionListEndpoint" Click="MenuItemSetVersionListEndpointClicked" />
+                <MenuItem Header="Set version data endpoints..." Name="SetVersionListEndpoint" Click="MenuItemSetVersionListEndpointClicked" />
             </MenuItem>
         </Menu>
         <TabControl Grid.Row="1" Margin="0,5,0,0" BorderThickness="0,1,0,0" Padding="0" Width="Auto">
