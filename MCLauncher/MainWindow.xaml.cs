@@ -246,8 +246,16 @@ namespace MCLauncher {
             versionEntry.StateChangeInfo = new VersionStateChangeInfo(VersionState.Extracting);
             try {
                 await Task.Run(() => {
-                    ZipFile.ExtractToDirectory(filePath, directory);
-                    File.Delete(Path.Combine(directory, "AppxSignature.p7x"));
+                    try {
+                        ZipFile.ExtractToDirectory(openFileDlg.FileName, directory);
+                        File.Delete(Path.Combine(directory, "AppxSignature.p7x"));
+                    } catch (InvalidDataException ex) {
+                        Debug.WriteLine("Failed extracting appx " + openFileDlg.FileName + ": " + ex.ToString());
+                        MessageBox.Show("Failed to import appx " + openFileDlg.SafeFileName + ". It may be corrupted or not an appx file.\n\nExtraction error: " + ex.Message, "Import failure");
+                        return;
+                    } finally {
+                        versionEntry.StateChangeInfo = null;
+                    }
                 });
 
                 versionEntry.UpdateInstallStatus();
