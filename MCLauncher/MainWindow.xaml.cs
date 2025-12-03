@@ -203,6 +203,7 @@ namespace MCLauncher {
 
 
                 var versionEntry = _versions.AddEntry(openFileDlg.SafeFileName, directory, packageType);
+                VersionTabs.SelectedItem = ImportedTab;
 
                 bool success = false;
 

@@ -115,17 +115,17 @@
                 <MenuItem Header="Set version data endpoints..." Name="SetVersionListEndpoint" Click="MenuItemSetVersionListEndpointClicked" />
             </MenuItem>
         </Menu>
-        <TabControl Grid.Row="1" Margin="0,5,0,0" BorderThickness="0,1,0,0" Padding="0" Width="Auto">
-            <TabItem Header="Release">
+        <TabControl x:Name="VersionTabs" Grid.Row="1" Margin="0,5,0,0" BorderThickness="0,1,0,0" Padding="0" Width="Auto">
+            <TabItem Header="Release" x:Name="ReleaseTab">
                 <ContentControl x:Name="ReleaseVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
             </TabItem>
-            <TabItem Header="Beta">
+            <TabItem Header="Beta" x:Name="BetaTab">
                 <ContentControl x:Name="BetaVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
             </TabItem>
-            <TabItem Header="Preview">
+            <TabItem Header="Preview" x:Name="PreviewTab">
                 <ContentControl x:Name="PreviewVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
             </TabItem>
-            <TabItem Header="Imported">
+            <TabItem Header="Imported" x:Name="ImportedTab">
                 <ContentControl x:Name="ImportedVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
             </TabItem>
         </TabControl>
