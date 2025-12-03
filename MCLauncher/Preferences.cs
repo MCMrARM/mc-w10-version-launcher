@@ -10,5 +10,7 @@ namespace MCLauncher {
         public string VersionsApiUWP { get; set; } = "";
 
         public string VersionsApiGDK { get; set; } = "";
+
+        public bool HasPreviouslyUsedGDK { get; set; } = false;
     }
 }

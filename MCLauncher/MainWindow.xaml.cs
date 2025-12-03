@@ -211,6 +211,7 @@ namespace MCLauncher {
                     success = await ExtractAppx(openFileDlg.FileName, directory, versionEntry);
                 
                 } else if (packageType == PackageType.GDK) {
+                    ShowGDKFirstUseWarning();
                     success = await ExtractMsixvc(openFileDlg.FileName, directory, versionEntry, isPreview: false);
                 } else {
                     Debug.Assert(false);
@@ -246,16 +247,8 @@ namespace MCLauncher {
             versionEntry.StateChangeInfo = new VersionStateChangeInfo(VersionState.Extracting);
             try {
                 await Task.Run(() => {
-                    try {
-                        ZipFile.ExtractToDirectory(openFileDlg.FileName, directory);
-                        File.Delete(Path.Combine(directory, "AppxSignature.p7x"));
-                    } catch (InvalidDataException ex) {
-                        Debug.WriteLine("Failed extracting appx " + openFileDlg.FileName + ": " + ex.ToString());
-                        MessageBox.Show("Failed to import appx " + openFileDlg.SafeFileName + ". It may be corrupted or not an appx file.\n\nExtraction error: " + ex.Message, "Import failure");
-                        return;
-                    } finally {
-                        versionEntry.StateChangeInfo = null;
-                    }
+                    ZipFile.ExtractToDirectory(filePath, directory);
+                    File.Delete(Path.Combine(directory, "AppxSignature.p7x"));
                 });
 
                 versionEntry.UpdateInstallStatus();
@@ -271,6 +264,27 @@ namespace MCLauncher {
                 return false;
             } finally {
                 versionEntry.StateChangeInfo = null;
+            }
+        }
+
+        private void ShowGDKFirstUseWarning() {
+            if (!UserPrefs.HasPreviouslyUsedGDK) {
+                MessageBox.Show(
+                    "The launcher has detected that you have never used a GDK version of Minecraft before.\n" +
+                        "Please be aware of the following:\n\n" +
+                        "You MUST install a GDK version of Minecraft from the Store before attempting to use the launcher for GDK versions." +
+                        "This is because the launcher needs the Store to install the keys to decrypt the installation packages.\n" +
+                        "If you don't, the installation packages may show corruption messages.\n\n" +
+                        "It is STRONGLY recommended to add an exclusion for C:\\XboxGames (or wherever your games install by default) to Windows Defender, " +
+                        "otherwise the installation process will take 10x as long.\n\n" +
+                        "During installation, you will see a few dialog boxes and a PowerShell window briefly pop up.\n" +
+                        "This is normal and is an unavoidable consequence of the installation method used for GDK versions.\n\n" +
+                        "Please also note that the location of your worlds will change when moving from UWP to GDK and vice versa.\n" +
+                        "If you can't find your worlds, you can use File -> \"Find my data\" to locate them.",
+                    "Minecraft GDK warning"
+                );
+                UserPrefs.HasPreviouslyUsedGDK = true;
+                RewritePrefs();
             }
         }
 
@@ -884,6 +898,7 @@ namespace MCLauncher {
                     if (v.PackageType == PackageType.UWP) {
                         await downloader.DownloadAppx(v.UUID, "1", dlPath, dlProgressHandler, cancelSource.Token);
                     } else if (v.PackageType == PackageType.GDK) {
+                        ShowGDKFirstUseWarning();
                         await downloader.DownloadMsixvc(v.DownloadURLs, dlPath, dlProgressHandler, cancelSource.Token);
                     } else {
                         throw new Exception("Unknown package type");
