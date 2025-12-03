@@ -212,8 +212,11 @@ namespace MCLauncher {
                     success = await ExtractAppx(openFileDlg.FileName, directory, versionEntry);
                 
                 } else if (packageType == PackageType.GDK) {
-                    ShowGDKFirstUseWarning();
-                    success = await ExtractMsixvc(openFileDlg.FileName, directory, versionEntry, isPreview: false);
+                    if (!ShowGDKFirstUseWarning()) {
+                        success = false;
+                    } else {
+                        success = await ExtractMsixvc(openFileDlg.FileName, directory, versionEntry, isPreview: false);
+                    }
                 } else {
                     Debug.Assert(false);
                 }
@@ -268,9 +271,9 @@ namespace MCLauncher {
             }
         }
 
-        private void ShowGDKFirstUseWarning() {
+        private bool ShowGDKFirstUseWarning() {
             if (!UserPrefs.HasPreviouslyUsedGDK) {
-                MessageBox.Show(
+                var result = MessageBox.Show(
                     "The launcher has detected that you have never used a GDK version of Minecraft before.\n" +
                         "Please be aware of the following:\n\n" +
                         "You MUST install a GDK version of Minecraft from the Store before attempting to use the launcher for GDK versions." +
@@ -282,11 +285,18 @@ namespace MCLauncher {
                         "This is normal and is an unavoidable consequence of the installation method used for GDK versions.\n\n" +
                         "Please also note that the location of your worlds will change when moving from UWP to GDK and vice versa.\n" +
                         "If you can't find your worlds, you can use File -> \"Find my data\" to locate them.",
-                    "Minecraft GDK warning"
+                    "Minecraft GDK warning",
+                    MessageBoxButton.OKCancel
                 );
-                UserPrefs.HasPreviouslyUsedGDK = true;
-                RewritePrefs();
+                if (result == MessageBoxResult.OK) {
+                    UserPrefs.HasPreviouslyUsedGDK = true;
+                    RewritePrefs();
+                    return true;
+                }
+                return false;
             }
+
+            return true;
         }
 
         private async Task<bool> ExtractMsixvc(string filePath, string directory, Version versionEntry, bool isPreview) {
@@ -899,7 +909,11 @@ namespace MCLauncher {
                     if (v.PackageType == PackageType.UWP) {
                         await downloader.DownloadAppx(v.UUID, "1", dlPath, dlProgressHandler, cancelSource.Token);
                     } else if (v.PackageType == PackageType.GDK) {
-                        ShowGDKFirstUseWarning();
+                        if (!ShowGDKFirstUseWarning()) {
+                            v.StateChangeInfo = null;
+                            v.UpdateInstallStatus();
+                            return;
+                        }
                         await downloader.DownloadMsixvc(v.DownloadURLs, dlPath, dlProgressHandler, cancelSource.Token);
                     } else {
                         throw new Exception("Unknown package type");
