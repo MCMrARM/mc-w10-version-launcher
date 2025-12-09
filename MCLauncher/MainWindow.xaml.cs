@@ -330,6 +330,23 @@ namespace MCLauncher {
             doc.Save(path);
         }
 
+
+        private void RecursiveCopyDirectory(string from, string to, HashSet<string> skip) {
+            Directory.CreateDirectory(to);
+            foreach (var source in Directory.EnumerateFiles(from)) {
+                if (skip.Contains(source)) {
+                    continue;
+                }
+                string destination = Path.Combine(to, Path.GetFileName(source));
+                Debug.WriteLine(source + " -> " + destination);
+                File.Copy(source, destination);
+            }
+            foreach (var source in Directory.EnumerateDirectories(from)) {
+                string destination = Path.Combine(to, Path.GetFileName(source));
+                RecursiveCopyDirectory(source, destination, skip);
+            }
+        }
+
         private async Task<bool> ExtractMsixvc(string filePath, string directory, Version versionEntry, bool isPreview) {
             if (_hasGdkExtractTask) {
                 InstallError(
@@ -501,13 +518,23 @@ namespace MCLauncher {
                 versionEntry.StateChangeInfo.VersionState = VersionState.Moving;
                 //TODO: this could fail if the launcher is on a different drive than C: ?
                 try {
-                    Debug.WriteLine("Moving staged files");
-                    Directory.Move(installPath, directory);
+                    Debug.WriteLine("Moving staged files: " + installPath + " -> " + directory);
+                    if (Path.GetPathRoot(installPath) == Path.GetPathRoot(directory)) {
+                        Debug.WriteLine("Destination for extraction is on the same drive as the installation location - moving files for speed");
+                        Directory.Move(installPath, directory);
+                    } else {
+                        Debug.WriteLine("Destination for extraction is on a different drive than staged - copying files");
+                        //Minecraft.Windows.exe can't be copied directly due to permissions
+                        HashSet<string> skip = new HashSet<string>();
+                        skip.Add(exeSrcPath);
+                        RecursiveCopyDirectory(installPath, directory, skip);
+                    }
+
 
                     Debug.WriteLine("Moving decrypted exe into place");
                     File.Delete(exeDstPath);
                     File.Move(exeTmpPath, exeDstPath);
-                } catch (IOException ex) {
+                } catch (Exception ex) {
                     InstallError(
                         "Failed copying/moving game files to the destination folder",
                         "Failed moving game files to destination",
