@@ -560,18 +560,28 @@ namespace MCLauncher {
                 }
                 v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Launching);
                 try {
-                    var pkg = await AppDiagnosticInfo.RequestInfoForPackageAsync(v.GamePackageFamily);
-                    if (pkg.Count > 0) {
-                        if (pkg.Count > 1) {
-                            Debug.WriteLine("Multiple packages found ???");
-                        }
-                        var result = await pkg[0].LaunchAsync();
-                        if (result.ExtendedError != null) {
-                            Debug.WriteLine("LaunchAsync didn't throw, but returned an extended error???");
-                            throw result.ExtendedError;
-                        }
+                    if (v.PackageType == PackageType.GDK) {
+                        //Although we register the package (so it shows in Start Menu), the game has
+                        //to be run as a regular win32 app so it can setup its COM interfaces, which
+                        //it can't do if run in an app container. So, the start menu entry won't work
+                        //until the .exe is run directly.
+                        //Technically this is only necessary on the first run, but we don't track whether
+                        //a version was run before, so we'll just do it every time.
+                        await Task.Run(() => Process.Start(Path.Combine(gameDir, "Minecraft.Windows.exe")));
                     } else {
-                        throw new Exception("No packages found for package family " + v.GamePackageFamily);
+                        var pkg = await AppDiagnosticInfo.RequestInfoForPackageAsync(v.GamePackageFamily);
+                        if (pkg.Count > 0) {
+                            if (pkg.Count > 1) {
+                                Debug.WriteLine("Multiple packages found ???");
+                            }
+                            var result = await pkg[0].LaunchAsync();
+                            if (result.ExtendedError != null) {
+                                Debug.WriteLine("LaunchAsync didn't throw, but returned an extended error???");
+                                throw result.ExtendedError;
+                            }
+                        } else {
+                            throw new Exception("No packages found for package family " + v.GamePackageFamily);
+                        }
                     }
                     Debug.WriteLine("App launch finished!");
                 } catch (Exception e) {
