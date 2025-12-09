@@ -13,6 +13,7 @@ namespace MCLauncher {
     using System.Linq;
     using System.Threading;
     using System.Windows.Data;
+    using System.Xml.Linq;
     using Windows.ApplicationModel;
     using Windows.Foundation;
     using Windows.Management.Core;
@@ -299,6 +300,36 @@ namespace MCLauncher {
             return true;
         }
 
+        private void FixGDKManifest(string path) {
+            XDocument doc = XDocument.Load(path);
+            XNamespace ns = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
+            XNamespace rescap = "http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities";
+
+            var apps = doc.Descendants(ns + "Application");
+            foreach (var app in apps) {
+                var executable = app.Attribute("Executable");
+                if (executable != null && executable.Value == "GameLaunchHelper.exe") {
+                    executable.Value = "Minecraft.Windows.exe";
+                }
+            }
+
+            var extensions = doc.Root.Elements(ns + "Extensions").ToList();
+            foreach (var ext in extensions) {
+                ext.Remove();
+            }
+
+            var capabilities = doc.Descendants(ns + "Capabilities");
+            var customInstall = capabilities
+                .Elements(rescap + "Capability")
+                .Where(c => c.Attribute("Name")?.Value == "customInstallActions")
+                .ToList();
+            foreach (var cap in customInstall) {
+                cap.Remove();
+            }
+
+            doc.Save(path);
+        }
+
         private async Task<bool> ExtractMsixvc(string filePath, string directory, Version versionEntry, bool isPreview) {
             if (_hasGdkExtractTask) {
                 InstallError(
@@ -518,47 +549,38 @@ namespace MCLauncher {
                 }
                 v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Registering);
                 string gameDir = Path.GetFullPath(v.GameDirectory);
-                if (v.PackageType == PackageType.GDK) {
-                    //TODO: Not sure if this will work for preview builds
-                    //For now we can't register the package with the system because the appx is invalid
-                    //Apparently we have to generate a new manifest from the MicrosoftGame.Config file
-                    //similar to what wdapp.exe does
-                    v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Launching);
-                    try {
-                        await Task.Run(() => Process.Start(Path.Combine(gameDir, "Minecraft.Windows.exe")));
-                        Debug.WriteLine("App launch finished!");
-                    } catch (Exception e) {
-                        Debug.WriteLine("GDK .exe launch failed:\n" + e.ToString());
-                        MessageBox.Show("GDK .exe launch failed:\n" + e.ToString());
-                        return;
-                    } finally {
-                        _hasLaunchTask = false;
-                        v.StateChangeInfo = null;
+                try {
+                    await ReRegisterPackage(v.GamePackageFamily, gameDir, v);
+                } catch (Exception e) {
+                    Debug.WriteLine("App re-register failed:\n" + e.ToString());
+                    MessageBox.Show("App re-register failed:\n" + e.ToString());
+                    _hasLaunchTask = false;
+                    v.StateChangeInfo = null;
+                    return;
+                }
+                v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Launching);
+                try {
+                    var pkg = await AppDiagnosticInfo.RequestInfoForPackageAsync(v.GamePackageFamily);
+                    if (pkg.Count > 0) {
+                        if (pkg.Count > 1) {
+                            Debug.WriteLine("Multiple packages found ???");
+                        }
+                        var result = await pkg[0].LaunchAsync();
+                        if (result.ExtendedError != null) {
+                            Debug.WriteLine("LaunchAsync didn't throw, but returned an extended error???");
+                            throw result.ExtendedError;
+                        }
+                    } else {
+                        throw new Exception("No packages found for package family " + v.GamePackageFamily);
                     }
-                } else {
-                    try {
-                        await ReRegisterPackage(v.GamePackageFamily, gameDir, v);
-                    } catch (Exception e) {
-                        Debug.WriteLine("App re-register failed:\n" + e.ToString());
-                        MessageBox.Show("App re-register failed:\n" + e.ToString());
-                        _hasLaunchTask = false;
-                        v.StateChangeInfo = null;
-                        return;
-                    }
-                    v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Launching);
-                    try {
-                        var pkg = await AppDiagnosticInfo.RequestInfoForPackageAsync(v.GamePackageFamily);
-                        if (pkg.Count > 0)
-                            await pkg[0].LaunchAsync();
-                        Debug.WriteLine("App launch finished!");
-                    } catch (Exception e) {
-                        Debug.WriteLine("App launch failed:\n" + e.ToString());
-                        MessageBox.Show("App launch failed:\n" + e.ToString());
-                        return;
-                    } finally {
-                        _hasLaunchTask = false;
-                        v.StateChangeInfo = null;
-                    }
+                    Debug.WriteLine("App launch finished!");
+                } catch (Exception e) {
+                    Debug.WriteLine("App launch failed:\n" + e.ToString());
+                    MessageBox.Show("App launch failed:\n" + e.ToString());
+                    return;
+                } finally {
+                    _hasLaunchTask = false;
+                    v.StateChangeInfo = null;
                 }
             });
         }
@@ -879,6 +901,14 @@ namespace MCLauncher {
             }
             Debug.WriteLine("Registering package");
             string manifestPath = Path.Combine(gameDir, "AppxManifest.xml");
+
+            if (version.PackageType == PackageType.GDK) {
+                string originalPath = Path.Combine(gameDir, "AppxManifest_original.xml");
+                if (!File.Exists(originalPath)) {
+                    File.Copy(manifestPath, originalPath);
+                    FixGDKManifest(manifestPath);
+                }
+            }
             Debug.WriteLine("Manifest path: " + manifestPath);
             await DeploymentProgressWrapper(new PackageManager().RegisterPackageAsync(new Uri(manifestPath), null, DeploymentOptions.DevelopmentMode), version);
             Debug.WriteLine("App re-register done!");
