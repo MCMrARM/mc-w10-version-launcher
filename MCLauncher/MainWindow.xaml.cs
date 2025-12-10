@@ -285,7 +285,7 @@ namespace MCLauncher {
                         "During installation, you will see a few dialog boxes and a PowerShell window briefly pop up.\n" +
                         "This is normal and is an unavoidable consequence of the installation method used for GDK versions.\n\n" +
                         "Please also note that the location of your worlds will change when moving from UWP to GDK and vice versa.\n" +
-                        "If you can't find your worlds, you can use File -> \"Find my data\" to locate them.",
+                        "If you can't find your worlds, you can use Tools -> \"Find my data\" to locate them.",
                     "Minecraft GDK warning",
                     MessageBoxButton.OKCancel
                 );
