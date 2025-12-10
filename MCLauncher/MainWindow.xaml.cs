@@ -1086,6 +1086,7 @@ namespace MCLauncher {
 
         private void DeleteAppxAfterDownloadCheck_Changed(object sender, RoutedEventArgs e) {
             UserPrefs.DeleteAppxAfterDownload = DeleteAppxAfterDownloadOption.IsChecked;
+            RewritePrefs();
         }
 
         private void RewritePrefs() {
