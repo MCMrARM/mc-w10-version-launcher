@@ -12,5 +12,7 @@ namespace MCLauncher {
         public string VersionsApiGDK { get; set; } = "";
 
         public bool HasPreviouslyUsedGDK { get; set; } = false;
+
+        public bool ShowLegacyBetaTab { get; set; } = false;
     }
 }

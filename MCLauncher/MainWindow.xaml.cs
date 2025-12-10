@@ -1193,6 +1193,15 @@ namespace MCLauncher {
             dialog.Close();
             MessageBox.Show("Cleanup completed. You should now be able to install Minecraft from Microsoft Store.", "Cleanup completed");
         }
+
+        private void ShowBetaTabOption_Changed(object sender, RoutedEventArgs e) {
+            UserPrefs.ShowLegacyBetaTab = ShowBetaTabOption.IsChecked;
+            BetaTab.Visibility = UserPrefs.ShowLegacyBetaTab ? Visibility.Visible : Visibility.Collapsed;
+            if (VersionTabs.SelectedItem == BetaTab && BetaTab.Visibility != Visibility.Visible) {
+                VersionTabs.SelectedItem = ReleaseTab;
+            }
+            RewritePrefs();
+        }
     }
 
     struct MinecraftPackageFamilies

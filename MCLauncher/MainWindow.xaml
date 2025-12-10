@@ -115,13 +115,14 @@
             <MenuItem Header="_Options">
                 <MenuItem Header="Delete installation packages after download to save space" IsCheckable="True" Name="DeleteAppxAfterDownloadOption" Checked="DeleteAppxAfterDownloadCheck_Changed" Unchecked="DeleteAppxAfterDownloadCheck_Changed" IsChecked="{Binding UserPrefs.DeleteAppxAfterDownload }" />
                 <MenuItem Header="Set version data endpoints..." Name="SetVersionListEndpoint" Click="MenuItemSetVersionListEndpointClicked" />
+                <MenuItem Header="Show legacy Beta versions tab" IsCheckable="True" Name="ShowBetaTabOption" Checked="ShowBetaTabOption_Changed" Unchecked="ShowBetaTabOption_Changed" IsChecked="{Binding UserPrefs.ShowLegacyBetaTab}" />
             </MenuItem>
         </Menu>
         <TabControl x:Name="VersionTabs" Grid.Row="1" Margin="0,5,0,0" BorderThickness="0,1,0,0" Padding="0" Width="Auto">
             <TabItem Header="Release" x:Name="ReleaseTab">
                 <ContentControl x:Name="ReleaseVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
             </TabItem>
-            <TabItem Header="Beta" x:Name="BetaTab">
+            <TabItem Header="Beta" x:Name="BetaTab" Visibility="Collapsed">
                 <ContentControl x:Name="BetaVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
             </TabItem>
             <TabItem Header="Preview" x:Name="PreviewTab">
