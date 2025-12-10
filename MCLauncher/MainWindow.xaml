@@ -69,7 +69,7 @@
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding DisplayName}" FontWeight="Bold" />
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding StateChangeInfo.DisplayStatus}" />
                 <Canvas Name="progressSizeHack" Grid.Row="2" Grid.Column="0" Height="12">
-                    <ProgressBar Width="{Binding Path=ActualWidth, ElementName=progressSizeHack, Mode=OneWay}" Height="{Binding Path=ActualHeight, ElementName=progressSizeHack, Mode=OneWay}" Minimum="0" Maximum="{Binding StateChangeInfo.TotalSize}" Value="{Binding StateChangeInfo.DownloadedBytes}" IsIndeterminate="{Binding StateChangeInfo.IsProgressIndeterminate}" />
+                    <ProgressBar Width="{Binding Path=ActualWidth, ElementName=progressSizeHack, Mode=OneWay}" Height="{Binding Path=ActualHeight, ElementName=progressSizeHack, Mode=OneWay}" Minimum="0" Maximum="{Binding StateChangeInfo.MaxProgress}" Value="{Binding StateChangeInfo.Progress}" IsIndeterminate="{Binding StateChangeInfo.IsProgressIndeterminate}" />
                 </Canvas>
                 <Button Grid.Row="2" Grid.Column="1" Content="X" Width="20" Margin="10 0 0 0" Command="{Binding StateChangeInfo.CancelCommand}" />
             </Grid>
@@ -104,26 +104,30 @@
             <MenuItem Header="_File">
                 <MenuItem Header="Open log file" Click="MenuItemOpenLogFileClicked" />
                 <MenuItem Header="Open launcher data folder in Explorer" Click="MenuItemOpenDataDirClicked"/>
-                <MenuItem Header="_Import APPX file" Click="ImportButtonClicked" />
+                <MenuItem Header="_Import .appx or .msixvc..." Click="ImportButtonClicked" />
+            </MenuItem>
+            <MenuItem Header="_Tools">
+                <MenuItem Header="Uninstall all versions" Name="CleanupForMicrosoftStoreReinstall" Click="MenuItemUninstallAllVersionsClicked" />
+                <MenuItem Header="Cleanup for installing Minecraft from Microsoft Store" Name="CleanupForMicrosoftStoreInstall" Click="MenuItemCleanupForStoreInstallClicked" />
+                <MenuItem Header="Refresh version list" Name="RefreshVersionList" Click="MenuItemRefreshVersionListClicked" />
+                <MenuItem Header="Find my Minecraft data" Click="MenuItemFindMyDataClicked" />
             </MenuItem>
             <MenuItem Header="_Options">
-                <MenuItem Header="Delete APPX after download to save space" IsCheckable="True" Name="DeleteAppxAfterDownloadOption" Checked="DeleteAppxAfterDownloadCheck_Changed" Unchecked="DeleteAppxAfterDownloadCheck_Changed" IsChecked="{Binding UserPrefs.DeleteAppxAfterDownload }" />
-                <MenuItem Header="Uninstall all versions" Name="CleanupForMicrosoftStoreReinstall" Click="MenuItemCleanupForMicrosoftStoreReinstallClicked" />
-                <MenuItem Header="Refresh version list" Name="RefreshVersionList" Click="MenuItemRefreshVersionListClicked" />
-                <MenuItem Header="Set version list endpoint..." Name="SetVersionListEndpoint" Click="MenuItemSetVersionListEndpointClicked" />
+                <MenuItem Header="Delete installation packages after download to save space" IsCheckable="True" Name="DeleteAppxAfterDownloadOption" Checked="DeleteAppxAfterDownloadCheck_Changed" Unchecked="DeleteAppxAfterDownloadCheck_Changed" IsChecked="{Binding UserPrefs.DeleteAppxAfterDownload }" />
+                <MenuItem Header="Set version data endpoints..." Name="SetVersionListEndpoint" Click="MenuItemSetVersionListEndpointClicked" />
             </MenuItem>
         </Menu>
-        <TabControl Grid.Row="1" Margin="0,5,0,0" BorderThickness="0,1,0,0" Padding="0" Width="Auto">
-            <TabItem Header="Release">
+        <TabControl x:Name="VersionTabs" Grid.Row="1" Margin="0,5,0,0" BorderThickness="0,1,0,0" Padding="0" Width="Auto">
+            <TabItem Header="Release" x:Name="ReleaseTab">
                 <ContentControl x:Name="ReleaseVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
             </TabItem>
-            <TabItem Header="Beta">
+            <TabItem Header="Beta" x:Name="BetaTab">
                 <ContentControl x:Name="BetaVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
             </TabItem>
-            <TabItem Header="Preview">
+            <TabItem Header="Preview" x:Name="PreviewTab">
                 <ContentControl x:Name="PreviewVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
             </TabItem>
-            <TabItem Header="Imported">
+            <TabItem Header="Imported" x:Name="ImportedTab">
                 <ContentControl x:Name="ImportedVersionList" d:DataContext="{d:DesignData /SampleData/Versions.xaml}" Template="{StaticResource templateVersionList}" Margin="5" />
             </TabItem>
         </TabControl>
@@ -141,7 +145,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Label Grid.Row="0" Grid.Column="0" Name="LoadingProgressLabel" Content="Nothing" Padding="0,0,0,0"/>
-                <ProgressBar Grid.Row="0" Grid.Column="1" Name="LoadingProgressBar" Width="100" Margin="5,0,0,0" Maximum="3" Value="2"/>
+                <ProgressBar Grid.Row="0" Grid.Column="1" Name="LoadingProgressBar" Width="100" Margin="5,0,0,0" Maximum="5" Value="4"/>
             </Grid>
         </Grid>
     </Grid>

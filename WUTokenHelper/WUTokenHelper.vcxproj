@@ -8,7 +8,7 @@
     <ProjectGuid>{b7336ba7-1e83-43d8-bd0e-3d44c6e3d4e7}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>WUTokenHelper</RootNamespace>
-    <WindowsTargetPlatformVersion Condition=" '$(WindowsTargetPlatformVersion)' == '' ">10.0.17763.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion Condition=" '$(WindowsTargetPlatformVersion)' == '' ">10.0.26100.0</WindowsTargetPlatformVersion>
     <WindowsTargetPlatformMinVersion>10.0.17134.0</WindowsTargetPlatformMinVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
