@@ -359,6 +359,7 @@ namespace MCLauncher {
             }
             _hasGdkExtractTask = true;
             try {
+                directory = Path.GetFullPath(directory);
                 // XVC are encrypted containers, I don't currently know of any way to extract them to an arbitrary directory
                 // For now we just stage the package in XboxGames, and then move the files to the launcher data directory
 
