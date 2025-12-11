@@ -275,9 +275,9 @@ namespace MCLauncher {
         private bool ShowGDKFirstUseWarning() {
             if (!UserPrefs.HasPreviouslyUsedGDK) {
                 var result = MessageBox.Show(
-                    "The launcher has detected that you have never used a GDK version of Minecraft before.\n" +
+                    "The launcher has detected that this is your first time using a GDK version of Minecraft in this launcher.\n" +
                         "Please be aware of the following:\n\n" +
-                        "You MUST install a GDK version of Minecraft from the Store before attempting to use the launcher for GDK versions." +
+                        "You MUST install a GDK version of Minecraft from the Store before attempting to use the launcher for GDK versions.\n" +
                         "This is because the launcher needs the Store to install the keys to decrypt the installation packages.\n" +
                         "If you don't, the installation packages may show corruption messages.\n\n" +
                         "It is STRONGLY recommended to add an exclusion for C:\\XboxGames (or wherever your games install by default) to Windows Defender, " +
