@@ -822,25 +822,57 @@ namespace MCLauncher {
                 return true;
             }
 
+            string gdkRoot = GetMinecraftGDKRootDir(packageFamily);
+            string uwpDataDir = GetMinecraftUWPDataDir(packageFamily);
+
             if (dataLocations.Count > 1) {
                 var messageString = "";
                 foreach (var loc in dataLocations) {
                     messageString += $"\n - {loc.Key}: {loc.Value} worlds";
                 }
+
+                //GDK might put worlds in several places, but this is fine as long as the target version is also GDK
+                if (destinationType == PackageType.GDK) {
+                    Debug.WriteLine("Checking for dirs with prefix: " + gdkRoot);
+                    bool gdkOnly = true;
+                    foreach (var loc in dataLocations) {
+                        if (!loc.Key.StartsWith(gdkRoot)) {
+                            gdkOnly = false;
+                            Debug.WriteLine("Folder " + loc.Key + " doesn't start with " + gdkRoot);
+                            break;
+                        } else {
+                            Debug.WriteLine("Folder " + loc.Key + " is in GDK data, ignoring");
+                        }
+                    }
+
+                    if (gdkOnly) {
+                        Debug.WriteLine("Worlds found in multiple places, but all of them are GDK:" + messageString);
+                        Debug.WriteLine("This is fine since the target version is also GDK, doing nothing");
+                        return true;
+                    }
+                }
+
                 Debug.WriteLine("Can't automatically restore Minecraft data - multiple locations with worlds found:" + messageString);
-                MessageBox.Show(
-                    "Unable to automatically restore Minecraft worlds for UWP, because multiple locations with worlds were found:"
+
+                string destinationFolder = destinationType == PackageType.UWP ? uwpDataDir : Path.Combine(gdkRoot, "Users");
+                //TODO: we could allow this to proceed anyway, with a warning instead of an error?
+                var result = MessageBox.Show(
+                    "Worlds were found in multiple locations, and the launcher doesn't know which to use.\n"
                         + messageString
-                        + "\n\nPlease resolve the conflicts manually by copying worlds into the desired location.",
-                    "Data restore error"
+                        + "\n\nThe version you're trying to launch will look for your worlds in: " + destinationFolder
+                        + "\n\nPlease resolve the conflicts manually by copying worlds into the desired location."
+                        + "\n\nAlternatively, you can proceed to launch, but please note that some of your worlds may not be visible to the game."
+                        + "\nDo you want to continue anyway?",
+                    "Data restore error",
+                    MessageBoxButton.OKCancel
                 );
-                return false;
+                return result == MessageBoxResult.OK;
             }
 
             string dataLocation = dataLocations.Keys.First();
 
             string tmpDir = GetBackupMinecraftDataDir();
-            string uwpDataDir = GetMinecraftUWPDataDir(packageFamily);
+
             string uwpParent = GetMinecraftUWPRootDir(packageFamily);
             if (dataLocation == tmpDir) {
                 //we don't know where GDK will want to store this due to the user folder names containing some kind of UID
