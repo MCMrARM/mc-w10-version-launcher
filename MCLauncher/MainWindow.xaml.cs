@@ -163,6 +163,7 @@ namespace MCLauncher {
             openFileDlg.Filter = "XVC and APPX packages (*.msixvc, *.appx)|*.msixvc;*.appx|APPX packages (*.appx)|*.appx|XVC packages (*.msixvc)|*.msixvc|All Files|*.*";
             Nullable<bool> result = openFileDlg.ShowDialog();
             if (result == true) {
+                Directory.CreateDirectory(IMPORTED_VERSIONS_PATH);
                 string directory = Path.Combine(IMPORTED_VERSIONS_PATH, openFileDlg.SafeFileName);
                 if (Directory.Exists(directory)) {
                     var found = false;
