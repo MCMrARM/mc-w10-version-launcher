@@ -58,6 +58,7 @@ namespace MCLauncher {
             _versions = new VersionList("versions_uwp.json", IMPORTED_VERSIONS_PATH, versionsApiUWP, this, VersionEntryPropertyChanged, "versions_gdk.json", versionsApiGDK);
 
             InitializeComponent();
+            DeleteAppxAfterDownloadOption.DataContext = this;
             ShowInstalledVersionsOnlyCheckbox.DataContext = this;
 
             var versionListViewRelease = Resources["versionListViewRelease"] as CollectionViewSource;
