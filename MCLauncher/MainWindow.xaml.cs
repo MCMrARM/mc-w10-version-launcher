@@ -461,13 +461,14 @@ namespace MCLauncher {
                 var exePartialTmpPath = exeTmpPath + ".tmp";
 
                 var exeDstPath = Path.Combine(Path.GetFullPath(directory), "Minecraft.Windows.exe");
+                var packageShellOutput = Path.GetTempFileName();
 
                 //TODO: these paths probably need to be escaped
                 var command = $@"Invoke-CommandInDesktopPackage `
                             -PackageFamilyName ""{versionEntry.GamePackageFamily}"" `
                             -App Game `
                             -Command ""powershell.exe"" `
-                            -Args \""-Command Copy-Item '{exeSrcPath}' '{exePartialTmpPath}' -Force; Move-Item '{exePartialTmpPath}' '{exeTmpPath}'\""
+                            -Args \""-Command Copy-Item '{exeSrcPath}' '{exePartialTmpPath}' -Force *>&1 >> '{packageShellOutput}'; Move-Item '{exePartialTmpPath}' '{exeTmpPath}' *>&1 >> '{packageShellOutput}'; Write-Output 'Test output' >> '{packageShellOutput}'\""
                         ";
                 Debug.WriteLine("Decrypt command: " + command);
 
@@ -502,6 +503,8 @@ namespace MCLauncher {
                     //TODO: What if the copy takes longer than that?
                     await Task.Delay(100);
                 }
+
+                Debug.WriteLine("Decrypt command shell output: " + File.ReadAllText(packageShellOutput));
 
                 if (!File.Exists(exeTmpPath)) {
                     Debug.WriteLine("Src path: " + exeSrcPath);
