@@ -440,20 +440,7 @@ namespace MCLauncher {
 
                 versionEntry.StateChangeInfo.VersionState = VersionState.Decrypting;
 
-                var exeTmpDir = Path.GetFullPath(@"tmp");
-                if (!Directory.Exists(exeTmpDir)) {
-                    try {
-                        Directory.CreateDirectory(exeTmpDir);
-                    } catch (IOException ex) {
-                        InstallError(
-                            "The temporary directory for extracting the Minecraft executable could not be created at " + exeTmpDir,
-                            "Failed to create tmp dir for exe extraction: " + exeTmpDir,
-                            filePath,
-                            ex
-                        );
-                        return false;
-                    }
-                }
+                var exeTmpDir = Path.GetTempPath();
                 var uuid = Guid.NewGuid().ToString();
                 //Use a different tmp path to make sure we don't copy half-done files
                 //UUID makes sure we don't copy the leftovers of a different, failed installation
