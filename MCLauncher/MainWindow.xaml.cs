@@ -29,7 +29,7 @@ namespace MCLauncher {
     /// Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window, ICommonVersionCommands {
-
+        private const string GDK_SHIM_NAME = @"GDKLaunchShim.exe";
         private static readonly string PREFS_PATH = @"preferences.json";
         private static readonly string IMPORTED_VERSIONS_PATH = @"imported_versions";
         private static readonly string VERSIONS_API_UWP = "https://mrarm.io/r/w10-vdb";
@@ -312,8 +312,9 @@ namespace MCLauncher {
             var apps = doc.Descendants(ns + "Application");
             foreach (var app in apps) {
                 var executable = app.Attribute("Executable");
-                if (executable != null && executable.Value == "GameLaunchHelper.exe") {
-                    executable.Value = "Minecraft.Windows.exe";
+                //install from older versions will reference the minecraft exe directly, so we need to patch these
+                if (executable != null && (executable.Value == "GameLaunchHelper.exe" || executable.Value == "Minecraft.Windows.exe")) {
+                    executable.Value = GDK_SHIM_NAME;
                 }
             }
 
@@ -588,28 +589,18 @@ namespace MCLauncher {
                 }
                 v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Launching);
                 try {
-                    if (v.PackageType == PackageType.GDK) {
-                        //Although we register the package (so it shows in Start Menu), the game has
-                        //to be run as a regular win32 app so it can setup its COM interfaces, which
-                        //it can't do if run in an app container. So, the start menu entry won't work
-                        //until the .exe is run directly.
-                        //Technically this is only necessary on the first run, but we don't track whether
-                        //a version was run before, so we'll just do it every time.
-                        await Task.Run(() => Process.Start(Path.Combine(gameDir, "Minecraft.Windows.exe")));
-                    } else {
-                        var pkg = await AppDiagnosticInfo.RequestInfoForPackageAsync(v.GamePackageFamily);
-                        if (pkg.Count > 0) {
-                            if (pkg.Count > 1) {
-                                Debug.WriteLine("Multiple packages found ???");
-                            }
-                            var result = await pkg[0].LaunchAsync();
-                            if (result.ExtendedError != null) {
-                                Debug.WriteLine("LaunchAsync didn't throw, but returned an extended error???");
-                                throw result.ExtendedError;
-                            }
-                        } else {
-                            throw new Exception("No packages found for package family " + v.GamePackageFamily);
+                    var pkg = await AppDiagnosticInfo.RequestInfoForPackageAsync(v.GamePackageFamily);
+                    if (pkg.Count > 0) {
+                        if (pkg.Count > 1) {
+                            Debug.WriteLine("Multiple packages found ???");
                         }
+                        var result = await pkg[0].LaunchAsync();
+                        if (result.ExtendedError != null) {
+                            Debug.WriteLine("LaunchAsync didn't throw, but returned an extended error???");
+                            throw result.ExtendedError;
+                        }
+                    } else {
+                        throw new Exception("No packages found for package family " + v.GamePackageFamily);
                     }
                     Debug.WriteLine("App launch finished!");
                 } catch (Exception e) {
@@ -973,9 +964,24 @@ namespace MCLauncher {
             string manifestPath = Path.Combine(gameDir, "AppxManifest.xml");
 
             if (version.PackageType == PackageType.GDK) {
-                string originalPath = Path.Combine(gameDir, "AppxManifest_original.xml");
-                if (!File.Exists(originalPath)) {
-                    File.Copy(manifestPath, originalPath);
+                string shimPath = Path.Combine(gameDir, GDK_SHIM_NAME);
+                string backupManifestPath = Path.Combine(gameDir, "AppxManifest_original.xml");
+                bool patchedManifest = File.Exists(backupManifestPath);
+                if (!File.Exists(shimPath)) {
+                    Debug.WriteLine("Shim not present - adding it to the game dir");
+                    File.Copy(GDK_SHIM_NAME, shimPath);
+
+                    if (patchedManifest) {
+                        //we need to redo the manifest for older versions that didn't have the shim present
+                        File.Copy(backupManifestPath, manifestPath, overwrite: true);
+                        patchedManifest = false;
+                        Debug.WriteLine("Manifest needs re-patching because shim has been added to an old install");
+                    }
+                }
+
+                if (!patchedManifest) {
+                    Debug.WriteLine("Patching AppXManifest.xml");
+                    File.Copy(manifestPath, backupManifestPath);
                     FixGDKManifest(manifestPath);
                 }
             }
