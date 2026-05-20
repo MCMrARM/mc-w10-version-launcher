@@ -11,8 +11,10 @@ namespace MCLauncher {
     using System.IO;
     using System.IO.Compression;
     using System.Linq;
+    using System.Text;
     using System.Threading;
     using System.Windows.Data;
+    using System.Xml;
     using System.Xml.Linq;
     using Windows.ApplicationModel;
     using Windows.Foundation;
@@ -329,7 +331,12 @@ namespace MCLauncher {
                 cap.Remove();
             }
 
-            doc.Save(path);
+            var settings = new XmlWriterSettings();
+            settings.Encoding = new UTF8Encoding(false); //no BOM
+            settings.Indent = true;
+            using (XmlWriter w = XmlWriter.Create(path, settings)) {
+                doc.Save(w);
+            }
         }
 
 
