@@ -482,6 +482,7 @@ namespace MCLauncher {
                     Debug.WriteLine("Process output:" + process.StandardOutput.ReadToEnd());
                     Debug.WriteLine("Process errors:" + process.StandardError.ReadToEnd());
                 } catch (Exception ex) {
+                    Debug.WriteLine("Decrypt command shell output: " + File.ReadAllText(packageShellOutput));
                     InstallError(
                         "Failed to run PowerShell to copy the Minecraft executable out of the staged package",
                         "Failed running PowerShell for exe extraction",
