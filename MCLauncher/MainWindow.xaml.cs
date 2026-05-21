@@ -965,23 +965,34 @@ namespace MCLauncher {
 
             if (version.PackageType == PackageType.GDK) {
                 string shimPath = Path.Combine(gameDir, GDK_SHIM_NAME);
-                string backupManifestPath = Path.Combine(gameDir, "AppxManifest_original.xml");
-                bool patchedManifest = File.Exists(backupManifestPath);
-                if (!File.Exists(shimPath)) {
-                    Debug.WriteLine("Shim not present - adding it to the game dir");
-                    File.Copy(GDK_SHIM_NAME, shimPath);
 
+                string backupManifestPath = Path.Combine(gameDir, "AppxManifest_original.xml");
+                bool hasManifestBackup = File.Exists(backupManifestPath);
+                bool patchedManifest = hasManifestBackup;
+
+                if (!File.Exists(shimPath)) {
                     if (patchedManifest) {
                         //we need to redo the manifest for older versions that didn't have the shim present
                         File.Copy(backupManifestPath, manifestPath, overwrite: true);
                         patchedManifest = false;
-                        Debug.WriteLine("Manifest needs re-patching because shim has been added to an old install");
+                        Debug.WriteLine("Manifest needs re-patching because GDK launch shim has been added to an old install");
+                    } else {
+                        Debug.WriteLine("Adding launch shim to new GDK install");
                     }
+                } else {
+                    Debug.WriteLine("Updating GDK launch shim");
                 }
+                //always copy this, in case we need to update the shim
+                //annoying we can't just reference the shim from the launcher dir directly, but containerisation...
+                File.Copy(GDK_SHIM_NAME, shimPath, overwrite: true);
 
+                //avoid patching the manifest unless necessary, the user might have edited it
                 if (!patchedManifest) {
-                    Debug.WriteLine("Patching AppXManifest.xml");
-                    File.Copy(manifestPath, backupManifestPath);
+                    Debug.WriteLine("Patching AppxManifest.xml");
+                    if (!hasManifestBackup) {
+                        Debug.WriteLine("Backing up original manifest");
+                        File.Copy(manifestPath, backupManifestPath);
+                    }
                     FixGDKManifest(manifestPath);
                 }
             }
