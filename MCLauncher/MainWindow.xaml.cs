@@ -952,29 +952,22 @@ namespace MCLauncher {
         }
 
         private async Task ReRegisterPackage(string packageFamily, string gameDir, Version version) {
-            foreach (var pkg in new PackageManager().FindPackages(packageFamily)) {
-                string location = GetPackagePath(pkg);
-                if (location == gameDir) {
-                    Debug.WriteLine("Skipping package removal - same path: " + pkg.Id.FullName + " " + location);
-                    return;
-                }
-                await RemovePackage(pkg, packageFamily, version, skipBackup: false);
-            }
             Debug.WriteLine("Registering package");
             string manifestPath = Path.Combine(gameDir, "AppxManifest.xml");
+
+            bool updateManifest = false;
 
             if (version.PackageType == PackageType.GDK) {
                 string shimPath = Path.Combine(gameDir, GDK_SHIM_NAME);
 
                 string backupManifestPath = Path.Combine(gameDir, "AppxManifest_original.xml");
                 bool hasManifestBackup = File.Exists(backupManifestPath);
-                bool patchedManifest = hasManifestBackup;
 
                 if (!File.Exists(shimPath)) {
-                    if (patchedManifest) {
+                    updateManifest = true;
+                    if (hasManifestBackup) {
                         //we need to redo the manifest for older versions that didn't have the shim present
                         File.Copy(backupManifestPath, manifestPath, overwrite: true);
-                        patchedManifest = false;
                         Debug.WriteLine("Manifest needs re-patching because GDK launch shim has been added to an old install");
                     } else {
                         Debug.WriteLine("Adding launch shim to new GDK install");
@@ -987,7 +980,7 @@ namespace MCLauncher {
                 File.Copy(GDK_SHIM_NAME, shimPath, overwrite: true);
 
                 //avoid patching the manifest unless necessary, the user might have edited it
-                if (!patchedManifest) {
+                if (updateManifest) {
                     Debug.WriteLine("Patching AppxManifest.xml");
                     if (!hasManifestBackup) {
                         Debug.WriteLine("Backing up original manifest");
@@ -996,6 +989,16 @@ namespace MCLauncher {
                     FixGDKManifest(manifestPath);
                 }
             }
+
+            foreach (var pkg in new PackageManager().FindPackages(packageFamily)) {
+                string location = GetPackagePath(pkg);
+                if (location == gameDir && !updateManifest) {
+                    Debug.WriteLine("Skipping package removal - same path: " + pkg.Id.FullName + " " + location);
+                    return;
+                }
+                await RemovePackage(pkg, packageFamily, version, skipBackup: false);
+            }
+
             Debug.WriteLine("Manifest path: " + manifestPath);
             await DeploymentProgressWrapper(new PackageManager().RegisterPackageAsync(new Uri(manifestPath), null, DeploymentOptions.DevelopmentMode), version);
             Debug.WriteLine("App re-register done!");
