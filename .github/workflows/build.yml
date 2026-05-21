@@ -1,0 +1,70 @@
+name: Build MCLauncher
+on:
+  #schedule:
+  #  - cron: "30 2 1 * *"
+  push:
+    branches: [master]
+  workflow_dispatch:
+  repository_dispatch:
+    types: [build]
+
+concurrency: 
+  group: ${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build MCLauncher
+    runs-on: windows-2019
+
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install 7Zip PowerShell Module
+        shell: powershell
+        run: Install-Module 7Zip4PowerShell -Force -Verbose
+        
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1.1  
+        
+      - name: Setup NuGet
+        uses: nuget/setup-nuget@v1
+     
+      - name: Restore NuGet Packages
+        run: nuget restore MCLauncher.sln        
+
+      - name: Build MCLauncher proj
+        id: MCLauncher
+        run: msbuild MCLauncher.sln /p:Configuration=Release /p:Platform=x64
+        
+      - name: Build Artifact
+        shell: cmd
+        id: artifacts
+        run: powershell Compress-7Zip "x64\Release" -ArchiveFileName "MCLauncher.zip" -Format Zip
+
+      - name: Prepare release tag
+        shell: bash
+        id: date
+        run: echo "date=$(date +'v%Y-%m-%d')" >> $GITHUB_OUTPUT
+        
+      - name: add timestamp
+        shell: bash
+        id: date2
+        run: echo "date2=$(date +'v%Y_%m_%d')" >> $GITHUB_OUTPUT
+      
+      - name: rename files
+        shell: bash
+        id: rename
+        run: cp "./MCLauncher.zip"  "./${{ steps.date2.outputs.date2 }}.MCLauncher.zip"
+
+      - name: Upload build to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: \${{ steps.date2.outputs.date2 }}.MCLauncher.zip
+          tag: ${{ steps.date.outputs.date }}
+          overwrite: true
+          file_glob: true
+
