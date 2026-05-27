@@ -36,9 +36,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLin
     STARTUPINFOW si = { };
     PROCESS_INFORMATION pi = { };
 
+    //Wtf Windows. We need a space before the command line to make CreateProcess pass the args properly
+    wchar_t cmdLine[1024] = { 0 };
+    swprintf_s(cmdLine, L" %s", lpCmdLine);
+
     BOOL result = CreateProcessW(
         mainExe.c_str(),   // application name
-        NULL,              // command line
+        cmdLine,              // command line
         NULL,              // process security
         NULL,              // thread security
         FALSE,             // inherit handles
