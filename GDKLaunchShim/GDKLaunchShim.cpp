@@ -43,9 +43,9 @@ class IGameProtocolServer_V2 : public IGameProtocolServer_V1 {
     virtual HRESULT RegisterGameActivationCallbacksV2(IGameProtocolActivationCallbacks_V2* callbacks, IUnknown** protocolServerRegistrationToken) = 0;
 };*/
 
-//I think these are supposed to be used by GamePlatformServices??
-//I haven't been able to find the params for these as they seem not to be used in xgameruntime
-//I have debug info for xgameruntime but not gameplatformservices
+//these are used by GamePlatformServices to activate the game when it's already running
+//normally GameLaunchHelper would call these, but GLH doesn't work in unpackaged installs for some reason,
+//so we need to handle it manually
 struct __declspec(uuid("F58E3884-1F75-4C66-9127-A66161818693"))
 IGameProtocolProvider_V1 : public IUnknown {
     virtual HRESULT STDMETHODCALLTYPE NotifyGameProtocolActivation(unsigned int titleId, HSTRING uri, int* wasRegistered) = 0;
@@ -61,7 +61,7 @@ const CLSID CLSID_GameProtocolService = { 0xDEA688F3, 0x0625, 0x45AB, { 0xAF, 0x
 
 int showError(const wchar_t* name, HRESULT error) {
     wchar_t message[256] = { 0 };
-    swprintf_s(message, L"%s failed with error: %X", name, error);
+    swprintf_s(message, L"%s (error code %X)", name, error);
     MessageBoxW(NULL, message, L"Error", MB_ICONERROR);
     return error;
 }
@@ -103,10 +103,8 @@ DWORD findMinecraftProcess(std::wstring& fullExePath) {
     DWORD result = 0;
     int scanned = 0;
     int checked = 0;
-    if (Process32FirstW(snap, &pe))
-    {
-        do
-        {
+    if (Process32FirstW(snap, &pe)) {
+        do {
             HANDLE hproc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pe.th32ProcessID);
             if (!hproc) {
                 continue;
@@ -143,63 +141,48 @@ int activateRunningInstance(PWSTR lpCmdLine, int titleId) {
         return showError(L"CoCreateInstance", hr);
     }
 
+    bool isUri = false;
     if (wcsstr(lpCmdLine, L"://")) {
-        //uri
-        HSTRING hstring;
-        hr = WindowsCreateString(lpCmdLine, wcslen(lpCmdLine), &hstring);
-        if (hr < 0) {
-            iface->Release();
-            return showError(L"WindowsCreateString", hr);
-        }
-
-        int wasRegistered = 0;
-        hr = iface->NotifyGameProtocolActivation(titleId, hstring, &wasRegistered);
-
-        iface->Release();
-        return hr < 0 ? showError(L"NotifyGameProtocolActivation", hr) : 0;
+        isUri = true;
     } else {
+        //strip long path prefix
         if (wcsncmp(lpCmdLine, L"\\?\\\\", 4) == 0 || wcsncmp(lpCmdLine, L"\\??\\", 4) == 0) {
             lpCmdLine = &lpCmdLine[4];
         }
-
-        HSTRING hstring;
-        hr = WindowsCreateString(lpCmdLine, wcslen(lpCmdLine), &hstring);
-        if (hr < 0) {
-            iface->Release();
-            return showError(L"WindowsCreateString", hr);
-        }
-
-        int wasRegistered = 0;
-        hr = iface->NotifyGameFileActivation(titleId, hstring, &wasRegistered);
-
-        iface->Release();
-        return hr < 0 ? showError(L"NotifyGameFileActivation", hr) : 0;
     }
+
+    HSTRING hstring;
+    hr = WindowsCreateString(lpCmdLine, wcslen(lpCmdLine), &hstring);
+    if (hr < 0) {
+        iface->Release();
+        return showError(L"WindowsCreateString failed", hr);
+    }
+
+    int wasRegistered = 0;
+    hr = isUri ? iface->NotifyGameProtocolActivation(titleId, hstring, &wasRegistered) : iface->NotifyGameFileActivation(titleId, hstring, &wasRegistered);
+
+    iface->Release();
+    return hr < 0 ? showError(isUri ? L"NotifyGameProtocolActivation failed" : L"NotifyGameFileActivation failed", hr) : 0;
 }
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nCmdShow)
-{
-    // 1. Get full path of this EXE
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nCmdShow) {
     wchar_t modulePath[MAX_PATH] = { 0 };
 
-    if (!GetModuleFileNameW(NULL, modulePath, MAX_PATH))
-    {
+    if (!GetModuleFileNameW(NULL, modulePath, MAX_PATH)) {
         MessageBoxW(NULL, L"Failed to get module path", L"Error", MB_ICONERROR);
         return 1;
     }
 
-    // 2. Extract directory
     std::wstring fullPath(modulePath);
     size_t pos = fullPath.find_last_of(L"\\/");
-    if (pos == std::wstring::npos)
-    {
+    if (pos == std::wstring::npos) {
         MessageBoxW(NULL, L"Invalid module path", L"Error", MB_ICONERROR);
         return 1;
     }
 
     std::wstring dir = fullPath.substr(0, pos);
 
-    // 3. Build path to Main.exe
+    //TODO: we should probably fetch this from MicrosoftGame.Config for portability
     std::wstring mainExe = dir + L"\\Minecraft.Windows.exe";
 
     if (findMinecraftProcess(mainExe) > 0) {
@@ -213,7 +196,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLin
         return 0;
     }
 
-    // 5. Launch Main.exe
     STARTUPINFOW si = { };
     PROCESS_INFORMATION pi = { };
 
@@ -229,13 +211,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLin
         FALSE,             // inherit handles
         0,                 // creation flags
         NULL,              // environment
-        NULL,       // working directory (critical for MSIX)
+        NULL,       // working directory
         &si,
         &pi
     );
 
-    if (!result)
-    {
+    if (!result) {
         DWORD err = GetLastError();
 
         wchar_t msg[256];
