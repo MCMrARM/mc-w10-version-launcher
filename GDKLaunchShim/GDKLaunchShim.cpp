@@ -184,7 +184,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLin
 
     //TODO: we should probably fetch this from MicrosoftGame.Config for portability
     std::wstring mainExe = dir + L"\\Minecraft.Windows.exe";
-
+    
     if (findMinecraftProcess(mainExe) > 0) {
         if (lpCmdLine != NULL && lpCmdLine[0] != '\0') {
             int titleId = getTitleId(dir);
