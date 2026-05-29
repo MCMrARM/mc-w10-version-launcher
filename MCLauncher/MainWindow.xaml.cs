@@ -11,6 +11,7 @@ namespace MCLauncher {
     using System.IO;
     using System.IO.Compression;
     using System.Linq;
+    using System.Runtime.InteropServices;
     using System.Text;
     using System.Threading;
     using System.Windows.Data;
@@ -951,6 +952,13 @@ namespace MCLauncher {
             }
         }
 
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        static extern bool CreateHardLink(
+            string lpFileName,
+            string lpExistingFileName,
+            IntPtr lpSecurityAttributes
+        );
+
         private async Task ReRegisterPackage(string packageFamily, string gameDir, Version version) {
             Debug.WriteLine("Registering package");
             string manifestPath = Path.Combine(gameDir, "AppxManifest.xml");
@@ -975,9 +983,15 @@ namespace MCLauncher {
                 } else {
                     Debug.WriteLine("Updating GDK launch shim");
                 }
-                //always copy this, in case we need to update the shim
-                //annoying we can't just reference the shim from the launcher dir directly, but containerisation...
-                File.Copy(GDK_SHIM_NAME, shimPath, overwrite: true);
+
+                File.Delete(shimPath);
+                if (CreateHardLink(shimPath, GDK_SHIM_NAME, IntPtr.Zero)) {
+                    //hardlink is way less annoying for development, in theory
+                    Debug.WriteLine("Successfully hardlinked GDK launch shim");
+                } else {
+                    File.Copy(GDK_SHIM_NAME, shimPath, overwrite: true);
+                    Debug.WriteLine("Couldn't create hard link for GDK shim, copying instead");
+                }
 
                 //avoid patching the manifest unless necessary, the user might have edited it
                 if (updateManifest) {
