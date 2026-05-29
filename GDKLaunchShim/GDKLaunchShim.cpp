@@ -135,10 +135,10 @@ DWORD findMinecraftProcess(std::wstring& fullExePath) {
 int activateRunningInstance(PWSTR lpCmdLine, int titleId) {
     HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
-    IGameProtocolProvider_V2* iface = NULL;
+    IGameProtocolProvider_V1* iface = NULL;
     hr = CoCreateInstance(CLSID_GameProtocolService, NULL, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&iface));
     if (hr < 0) {
-        return showError(L"CoCreateInstance", hr);
+        return showError(L"CoCreateInstance failed", hr);
     }
 
     bool isUri = false;
@@ -159,10 +159,24 @@ int activateRunningInstance(PWSTR lpCmdLine, int titleId) {
     }
 
     int wasRegistered = 0;
-    hr = isUri ? iface->NotifyGameProtocolActivation(titleId, hstring, &wasRegistered) : iface->NotifyGameFileActivation(titleId, hstring, &wasRegistered);
+    if (isUri) {
+        hr = iface->NotifyGameProtocolActivation(titleId, hstring, &wasRegistered);
+    } else {
+        IGameProtocolProvider_V2* iface2;
+        hr = iface->QueryInterface(&iface2);
+        if (hr < 0) {
+            iface->Release();
+            return showError(L"Your version of GamingServices doesn't support importing files while the game is running. Try opening the file while the game is not running.", hr);
+        } else {
+            MessageBoxW(NULL, L"Importing files while the game is running may not work. This is a bug in Minecraft. If it doesn't work, try opening the file while the game is not running.", L"Warning", MB_ICONWARNING);
+        }
+
+        hr = iface2->NotifyGameFileActivation(titleId, hstring, &wasRegistered);
+        iface2->Release();
+    }
 
     iface->Release();
-    return hr < 0 ? showError(isUri ? L"NotifyGameProtocolActivation failed" : L"NotifyGameFileActivation failed", hr) : 0;
+    return hr < 0 ? showError((std::wstring(isUri ? L"NotifyGameProtocolActivation failed" : L"NotifyGameFileActivation failed") + std::wstring(L" with args: ") + std::wstring(lpCmdLine)).data(), hr) : hr;
 }
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nCmdShow) {
