@@ -21,15 +21,17 @@ namespace MCLauncher {
 
         private readonly string _cacheFileUWP;
         private readonly string _cacheFileGDK;
+        private readonly string _downloadedDirectory;
         private readonly string _importedDirectory;
         private readonly WPFDataTypes.ICommonVersionCommands _commands;
         private readonly HttpClient _client = new HttpClient();
         HashSet<string> dbVersions = new HashSet<string>();
 
         private PropertyChangedEventHandler _versionPropertyChangedHandler;
-        public VersionList(string cacheFileUWP, string importedDirectory, string versionsApiUWP, WPFDataTypes.ICommonVersionCommands commands, PropertyChangedEventHandler versionPropertyChangedEventHandler, string cacheFileGDK, string versionsApiGDK) {
+        public VersionList(string cacheFileUWP, string importedDirectory, string versionsApiUWP, WPFDataTypes.ICommonVersionCommands commands, PropertyChangedEventHandler versionPropertyChangedEventHandler, string cacheFileGDK, string versionsApiGDK, string downloadedDirectory) {
             _cacheFileUWP = cacheFileUWP;
             _cacheFileGDK = cacheFileGDK;
+            _downloadedDirectory = downloadedDirectory;
             _importedDirectory = importedDirectory;
             VersionsApiUWP = versionsApiUWP;
             VersionsApiGDK = versionsApiGDK;
@@ -61,7 +63,7 @@ namespace MCLauncher {
                 int versionType = o[2].Value<int>();
                 if (!Enum.IsDefined(typeof(WPFDataTypes.VersionType), versionType) || versionType == (int) WPFDataTypes.VersionType.Imported)
                     continue;
-                Add(new WPFDataTypes.Version(o[1].Value<string>(), o[0].Value<string>(), (WPFDataTypes.VersionType)versionType, isNew, _commands, PackageType.UWP, null));
+                Add(new WPFDataTypes.Version(o[1].Value<string>(), o[0].Value<string>(), (WPFDataTypes.VersionType)versionType, isNew, _commands, PackageType.UWP, null, _downloadedDirectory));
             }
         }
 
@@ -81,7 +83,7 @@ namespace MCLauncher {
                 bool exists = !dbVersions.Add(versionName);
                 bool isNew = !exists && !isCache;
 
-                Add(new WPFDataTypes.Version(WPFDataTypes.Version.UNKNOWN_UUID, versionName, versionType, isNew, _commands, PackageType.GDK, downloadUrls));
+                Add(new WPFDataTypes.Version(WPFDataTypes.Version.UNKNOWN_UUID, versionName, versionType, isNew, _commands, PackageType.GDK, downloadUrls, _downloadedDirectory));
             }
         }
 

@@ -25,14 +25,16 @@ namespace MCLauncher {
     using Windows.System;
     using Windows.UI.Xaml.Controls;
     using WPFDataTypes;
+    using Windows.ApplicationModel;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window, ICommonVersionCommands {
-        private const string GDK_SHIM_NAME = @"GDKLaunchShim.exe";
-        private static readonly string PREFS_PATH = @"preferences.json";
-        private static readonly string IMPORTED_VERSIONS_PATH = @"imported_versions";
+        private const string GDK_SHIM_NAME = "GDKLaunchShim.exe";
+        private string gdkShimPath;
+        private string prefsPath;
+        private string importedVersionsPath = @"imported_versions";
         private static readonly string VERSIONS_API_UWP = "https://mrarm.io/r/w10-vdb";
         private static readonly string VERSIONS_API_GDK = "https://raw.githubusercontent.com/MinecraftBedrockArchiver/GdkLinks/refs/heads/master/urls.min.json";
 
@@ -48,9 +50,28 @@ namespace MCLauncher {
         private volatile bool _hasLaunchTask = false;
         private volatile bool _hasGdkExtractTask = false;
 
+        private string dataPath;
+        private string logPath;
+
         public MainWindow() {
-            if (File.Exists(PREFS_PATH)) {
-                UserPrefs = JsonConvert.DeserializeObject<Preferences>(File.ReadAllText(PREFS_PATH));
+            string applicationFilesPath;
+            try {
+                var package = Package.Current;
+                dataPath = ApplicationData.Current.LocalFolder.Path;
+                applicationFilesPath = Path.Combine(package.InstalledLocation.Path, "MCLauncher");
+            } catch {
+                dataPath = Directory.GetCurrentDirectory();
+                applicationFilesPath = dataPath;
+            }
+            gdkShimPath = Path.Combine(applicationFilesPath, GDK_SHIM_NAME);
+
+            logPath = Path.Combine(dataPath, "Log.txt");
+            Debug.Listeners.Add(new TextWriterTraceListener(logPath));
+
+            prefsPath = Path.Combine(dataPath, "preferences.json");
+            importedVersionsPath = Path.Combine(dataPath, "imported_versions");
+            if (File.Exists(prefsPath)) {
+                UserPrefs = JsonConvert.DeserializeObject<Preferences>(File.ReadAllText(prefsPath));
             } else {
                 UserPrefs = new Preferences();
                 RewritePrefs();
@@ -58,7 +79,7 @@ namespace MCLauncher {
 
             var versionsApiUWP = UserPrefs.VersionsApiUWP != "" ? UserPrefs.VersionsApiUWP : VERSIONS_API_UWP;
             var versionsApiGDK = UserPrefs.VersionsApiGDK != "" ? UserPrefs.VersionsApiGDK : VERSIONS_API_GDK;
-            _versions = new VersionList("versions_uwp.json", IMPORTED_VERSIONS_PATH, versionsApiUWP, this, VersionEntryPropertyChanged, "versions_gdk.json", versionsApiGDK);
+            _versions = new VersionList(Path.Combine(dataPath, "versions_uwp.json"), importedVersionsPath, versionsApiUWP, this, VersionEntryPropertyChanged, Path.Combine(dataPath, "versions_gdk.json"), versionsApiGDK, dataPath);
 
             InitializeComponent();
             DeleteAppxAfterDownloadOption.DataContext = this;
@@ -166,8 +187,8 @@ namespace MCLauncher {
             openFileDlg.Filter = "XVC and APPX packages (*.msixvc, *.appx)|*.msixvc;*.appx|APPX packages (*.appx)|*.appx|XVC packages (*.msixvc)|*.msixvc|All Files|*.*";
             Nullable<bool> result = openFileDlg.ShowDialog();
             if (result == true) {
-                Directory.CreateDirectory(IMPORTED_VERSIONS_PATH);
-                string directory = Path.Combine(IMPORTED_VERSIONS_PATH, openFileDlg.SafeFileName);
+                Directory.CreateDirectory(importedVersionsPath);
+                string directory = Path.Combine(importedVersionsPath, openFileDlg.SafeFileName);
                 if (Directory.Exists(directory)) {
                     var found = false;
                     foreach (var version in _versions) {
@@ -985,11 +1006,11 @@ namespace MCLauncher {
                 }
 
                 File.Delete(shimPath);
-                if (CreateHardLink(shimPath, GDK_SHIM_NAME, IntPtr.Zero)) {
+                if (CreateHardLink(shimPath, gdkShimPath, IntPtr.Zero)) {
                     //hardlink is way less annoying for development, in theory
                     Debug.WriteLine("Successfully hardlinked GDK launch shim");
                 } else {
-                    File.Copy(GDK_SHIM_NAME, shimPath, overwrite: true);
+                    File.Copy(gdkShimPath, shimPath, overwrite: true);
                     Debug.WriteLine("Couldn't create hard link for GDK shim, copying instead");
                 }
 
@@ -1026,7 +1047,7 @@ namespace MCLauncher {
 
             Debug.WriteLine("Download start");
             Task.Run(async () => {
-                string dlPath = Path.GetFullPath((v.VersionType == VersionType.Preview ? "Minecraft-Preview-" : "Minecraft-") + v.Name + (v.PackageType == PackageType.UWP ? ".Appx" : ".msixvc"));
+                string dlPath = Path.Combine(dataPath, (v.VersionType == VersionType.Preview ? "Minecraft-Preview-" : "Minecraft-") + v.Name + (v.PackageType == PackageType.UWP ? ".Appx" : ".msixvc"));
                 VersionDownloader downloader = _anonVersionDownloader;
 
                 VersionDownloader.DownloadProgress dlProgressHandler = (current, total) => {
@@ -1156,18 +1177,18 @@ namespace MCLauncher {
         }
 
         private void RewritePrefs() {
-            File.WriteAllText(PREFS_PATH, JsonConvert.SerializeObject(UserPrefs));
+            File.WriteAllText(prefsPath, JsonConvert.SerializeObject(UserPrefs));
         }
 
         private void MenuItemOpenLogFileClicked(object sender, RoutedEventArgs e) {
-            if (!File.Exists(@"Log.txt")) {
+            if (!File.Exists(logPath)) {
                 MessageBox.Show("Log file not found", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             } else 
-                Process.Start(@"Log.txt");
+                Process.Start(logPath);
         }
 
         private void MenuItemOpenDataDirClicked(object sender, RoutedEventArgs e) {
-            Process.Start(@"explorer.exe", Directory.GetCurrentDirectory());
+            Process.Start(@"explorer.exe", dataPath);
         }
 
         private void MenuItemUninstallAllVersionsClicked(object sender, RoutedEventArgs e) {
@@ -1316,7 +1337,7 @@ namespace MCLauncher {
         public class Version : NotifyPropertyChangedBase {
             public static readonly string UNKNOWN_UUID = "UNKNOWN";
 
-            public Version(string uuid, string name, VersionType versionType, bool isNew, ICommonVersionCommands commands, PackageType packageType, List<string> downloadUrls) {
+            public Version(string uuid, string name, VersionType versionType, bool isNew, ICommonVersionCommands commands, PackageType packageType, List<string> downloadUrls, string dataDirectory) {
                 this.UUID = uuid;
                 this.Name = name;
                 this.VersionType = versionType;
@@ -1324,7 +1345,7 @@ namespace MCLauncher {
                 this.DownloadCommand = commands.DownloadCommand;
                 this.LaunchCommand = commands.LaunchCommand;
                 this.RemoveCommand = commands.RemoveCommand;
-                this.GameDirectory = (versionType == VersionType.Preview ? "Minecraft-Preview-" : "Minecraft-") + Name;
+                this.GameDirectory = Path.Combine(dataDirectory, (versionType == VersionType.Preview ? "Minecraft-Preview-" : "Minecraft-") + Name);
                 this.PackageType = packageType;
                 this.DownloadURLs = downloadUrls ?? new List<string>();
             }
