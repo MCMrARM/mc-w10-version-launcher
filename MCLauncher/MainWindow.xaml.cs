@@ -1102,7 +1102,18 @@ namespace MCLauncher {
                 v.StateChangeInfo = new VersionStateChangeInfo(VersionState.Unregistering);
                 Debug.WriteLine("Unregistering version " + v.DisplayName);
                 try {
-                    await UnregisterPackage(v.GamePackageFamily, v, skipBackup: false);
+                    int unregistered = 0;
+                    foreach (var pkg in new PackageManager().FindPackages(v.GamePackageFamily)) {
+                        string location = GetPackagePath(pkg);
+                        if (location == "" || Path.GetFullPath(location) == Path.GetFullPath(v.GameDirectory)) {
+                            Debug.WriteLine("Removing package: " + pkg.Id.FullName + " " + location);
+                            await RemovePackage(pkg, v.GamePackageFamily, v, skipBackup: false);
+                            unregistered++;
+                        }
+                    }
+                    if (unregistered == 0) {
+                        Debug.WriteLine($"Looks like {v.GameDirectory} is not registered with the system, no unregistering performed");
+                    }
                 } catch (Exception e) {
                     Debug.WriteLine("Failed unregistering package:\n" + e.ToString());
                     MessageBox.Show("Failed unregistering package:\n" + e.ToString(), "Uninstall error");
