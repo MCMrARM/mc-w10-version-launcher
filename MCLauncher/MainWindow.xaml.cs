@@ -31,6 +31,7 @@ namespace MCLauncher {
     /// </summary>
     public partial class MainWindow : Window, ICommonVersionCommands {
         private const string GDK_SHIM_NAME = @"GDKLaunchShim.exe";
+        private const string GDK_DECRYPT_HELPER_NAME = @"GDKDecryptHelper.exe";
         private static readonly string PREFS_PATH = @"preferences.json";
         private static readonly string IMPORTED_VERSIONS_PATH = @"imported_versions";
         private static readonly string VERSIONS_API_UWP = "https://mrarm.io/r/w10-vdb";
@@ -287,8 +288,6 @@ namespace MCLauncher {
                         "If you don't, the installation packages may show corruption messages.\n\n" +
                         "It is STRONGLY recommended to add an exclusion for C:\\XboxGames (or wherever your games install by default) to Windows Defender, " +
                         "otherwise the installation process will take 10x as long.\n\n" +
-                        "During installation, you will see a few dialog boxes and a PowerShell window briefly pop up.\n" +
-                        "This is normal and is an unavoidable consequence of the installation method used for GDK versions.\n\n" +
                         "Please also note that the location of your worlds will change when moving from UWP to GDK and vice versa.\n" +
                         "If you can't find your worlds, you can use Tools -> \"Find my data\" to locate them.",
                     "Minecraft GDK warning",
@@ -457,14 +456,16 @@ namespace MCLauncher {
                 var exePartialTmpPath = exeTmpPath + ".tmp";
 
                 var exeDstPath = Path.Combine(Path.GetFullPath(directory), "Minecraft.Windows.exe");
-                var packageShellOutput = Path.GetTempFileName();
+                var decryptHelperLogFile = Path.GetTempFileName();
+
+                var helperPath = Path.Combine(Directory.GetCurrentDirectory(), GDK_DECRYPT_HELPER_NAME);
 
                 //TODO: these paths probably need to be escaped
                 var command = $@"Invoke-CommandInDesktopPackage `
                             -PackageFamilyName ""{versionEntry.GamePackageFamily}"" `
                             -App Game `
-                            -Command ""powershell.exe"" `
-                            -Args \""-Command Copy-Item '{exeSrcPath}' '{exePartialTmpPath}' -Force *>&1 >> '{packageShellOutput}'; Move-Item '{exePartialTmpPath}' '{exeTmpPath}' *>&1 >> '{packageShellOutput}'; Write-Output 'Test output' >> '{packageShellOutput}'\""
+                            -Command \""{helperPath}\"" `
+                            -Args '\""{exeSrcPath}\"" \""{exeTmpPath}\"" \""{decryptHelperLogFile}\""'
                         ";
                 Debug.WriteLine("Decrypt command: " + command);
 
@@ -484,7 +485,7 @@ namespace MCLauncher {
                     Debug.WriteLine("Process output:" + process.StandardOutput.ReadToEnd());
                     Debug.WriteLine("Process errors:" + process.StandardError.ReadToEnd());
                 } catch (Exception ex) {
-                    Debug.WriteLine("Decrypt command shell output: " + File.ReadAllText(packageShellOutput));
+                    Debug.WriteLine("Decrypt helper log output: " + File.ReadAllText(decryptHelperLogFile));
                     InstallError(
                         "Failed to run PowerShell to copy the Minecraft executable out of the staged package",
                         "Failed running PowerShell for exe extraction",
@@ -501,7 +502,7 @@ namespace MCLauncher {
                     await Task.Delay(100);
                 }
 
-                Debug.WriteLine("Decrypt command shell output: " + File.ReadAllText(packageShellOutput));
+                Debug.WriteLine("Decrypt helper log output: " + File.ReadAllText(decryptHelperLogFile));
 
                 if (!File.Exists(exeTmpPath)) {
                     Debug.WriteLine("Src path: " + exeSrcPath);

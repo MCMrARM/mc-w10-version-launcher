@@ -12,6 +12,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WUTokenHelper", "WUTokenHel
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GDKLaunchShim", "GDKLaunchShim\GDKLaunchShim.vcxproj", "{CC05A585-F8B4-4BC9-9C20-295AB1475C85}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GDKDecryptHelper", "GDKDecryptHelper\GDKDecryptHelper.vcxproj", "{313C4828-14D6-484E-AFB1-4F6018334B7D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -30,6 +32,10 @@ Global
 		{CC05A585-F8B4-4BC9-9C20-295AB1475C85}.Debug|x64.Build.0 = Debug|x64
 		{CC05A585-F8B4-4BC9-9C20-295AB1475C85}.Release|x64.ActiveCfg = Release|x64
 		{CC05A585-F8B4-4BC9-9C20-295AB1475C85}.Release|x64.Build.0 = Release|x64
+		{313C4828-14D6-484E-AFB1-4F6018334B7D}.Debug|x64.ActiveCfg = Debug|x64
+		{313C4828-14D6-484E-AFB1-4F6018334B7D}.Debug|x64.Build.0 = Debug|x64
+		{313C4828-14D6-484E-AFB1-4F6018334B7D}.Release|x64.ActiveCfg = Release|x64
+		{313C4828-14D6-484E-AFB1-4F6018334B7D}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
