@@ -453,7 +453,7 @@ namespace MCLauncher {
                 //Use a different tmp path to make sure we don't copy half-done files
                 //UUID makes sure we don't copy the leftovers of a different, failed installation
                 var exeTmpPath = Path.Combine(exeTmpDir, "Minecraft.Windows_" + uuid + ".exe");
-                var exePartialTmpPath = exeTmpPath + ".tmp";
+                var donePath = exeTmpPath + ".done";
 
                 var exeDstPath = Path.Combine(Path.GetFullPath(directory), "Minecraft.Windows.exe");
                 var decryptHelperLogFile = Path.GetTempFileName();
@@ -465,7 +465,7 @@ namespace MCLauncher {
                             -PackageFamilyName ""{versionEntry.GamePackageFamily}"" `
                             -App Game `
                             -Command \""{helperPath}\"" `
-                            -Args '\""{exeSrcPath}\"" \""{exeTmpPath}\"" \""{decryptHelperLogFile}\""'
+                            -Args '\""{exeSrcPath}\"" \""{exeTmpPath}\"" \""{decryptHelperLogFile}\"" \""{donePath}\""'
                         ";
                 Debug.WriteLine("Decrypt command: " + command);
 
@@ -495,7 +495,7 @@ namespace MCLauncher {
                     return false;
                 }
 
-                for (int i = 0; i < 300 && !File.Exists(exeTmpPath); i++) {
+                for (int i = 0; i < 300 && !File.Exists(donePath); i++) {
                     //Give it up to 30 seconds to copy the file
                     //We can't block on the outcome of Invoke-CommandInDesktopPackage, so we have to poll for the file
                     //TODO: What if the copy takes longer than that?
