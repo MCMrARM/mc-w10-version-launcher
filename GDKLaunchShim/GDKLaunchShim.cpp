@@ -203,11 +203,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLin
         if (lpCmdLine != NULL && lpCmdLine[0] != '\0') {
             int titleId = getTitleId(dir);
             activateRunningInstance(lpCmdLine, titleId);
+            return 0;
         } else {
-            //TODO: this should bring it to the foreground
-            MessageBoxW(NULL, L"This version is already running", L"Error", MB_ICONERROR);
+            //TODO: this should bring it to the foreground when No is clicked
+            int result = MessageBoxW(NULL, L"This version is already running. Do you want to launch another instance?", L"Version already running", MB_OKCANCEL | MB_DEFBUTTON2 | MB_ICONEXCLAMATION);
+            if (result != IDOK) {
+                return 0;
+            }
         }
-        return 0;
     }
 
     STARTUPINFOW si = { };
