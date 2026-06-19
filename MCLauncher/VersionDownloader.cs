@@ -57,7 +57,7 @@ namespace MCLauncher {
         private async Task<string> GetDownloadUrl(string updateIdentity, string revisionNumber) {
             XDocument result = await PostXmlAsync(protocol.GetDownloadUrl(),
                 protocol.BuildDownloadRequest(updateIdentity, revisionNumber));
-            Debug.WriteLine($"GetDownloadUrl() response for updateIdentity {updateIdentity}, revision {revisionNumber}:\n{result.ToString()}");
+            Trace.WriteLine($"GetDownloadUrl() response for updateIdentity {updateIdentity}, revision {revisionNumber}:\n{result.ToString()}");
             foreach (string s in protocol.ExtractDownloadResponseUrls(result)) {
                 if (s.StartsWith("http://tlu.dl.delivery.mp.microsoft.com/"))
                     return s;
@@ -73,7 +73,7 @@ namespace MCLauncher {
             string link = await GetDownloadUrl(updateIdentity, revisionNumber);
             if (link == null)
                 throw new BadUpdateIdentityException();
-            Debug.WriteLine("Resolved download link: " + link);
+            Trace.WriteLine("Resolved download link: " + link);
             await DownloadFile(link, destination, progress, cancellationToken);
         }
 

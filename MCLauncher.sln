@@ -3,16 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.6.11806.211
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MCLauncher", "MCLauncher\MCLauncher.csproj", "{9FEBCF6C-14EF-49E9-B57D-FCBC3BA4BC77}"
-	ProjectSection(ProjectDependencies) = postProject
-		{B7336BA7-1E83-43D8-BD0E-3D44C6E3D4E7} = {B7336BA7-1E83-43D8-BD0E-3D44C6E3D4E7}
-	EndProjectSection
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WUTokenHelper", "WUTokenHelper\WUTokenHelper.vcxproj", "{B7336BA7-1E83-43D8-BD0E-3D44C6E3D4E7}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GDKLaunchShim", "GDKLaunchShim\GDKLaunchShim.vcxproj", "{CC05A585-F8B4-4BC9-9C20-295AB1475C85}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GDKDecryptHelper", "GDKDecryptHelper\GDKDecryptHelper.vcxproj", "{313C4828-14D6-484E-AFB1-4F6018334B7D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MCLauncher", "MCLauncher\MCLauncher.csproj", "{12C68678-C715-4C30-B9DE-58B06D121F01}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,10 +17,6 @@ Global
 		Release|x64 = Release|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{9FEBCF6C-14EF-49E9-B57D-FCBC3BA4BC77}.Debug|x64.ActiveCfg = Debug|x64
-		{9FEBCF6C-14EF-49E9-B57D-FCBC3BA4BC77}.Debug|x64.Build.0 = Debug|x64
-		{9FEBCF6C-14EF-49E9-B57D-FCBC3BA4BC77}.Release|x64.ActiveCfg = Release|x64
-		{9FEBCF6C-14EF-49E9-B57D-FCBC3BA4BC77}.Release|x64.Build.0 = Release|x64
 		{B7336BA7-1E83-43D8-BD0E-3D44C6E3D4E7}.Debug|x64.ActiveCfg = Debug|x64
 		{B7336BA7-1E83-43D8-BD0E-3D44C6E3D4E7}.Debug|x64.Build.0 = Debug|x64
 		{B7336BA7-1E83-43D8-BD0E-3D44C6E3D4E7}.Release|x64.ActiveCfg = Release|x64
@@ -36,6 +29,9 @@ Global
 		{313C4828-14D6-484E-AFB1-4F6018334B7D}.Debug|x64.Build.0 = Debug|x64
 		{313C4828-14D6-484E-AFB1-4F6018334B7D}.Release|x64.ActiveCfg = Release|x64
 		{313C4828-14D6-484E-AFB1-4F6018334B7D}.Release|x64.Build.0 = Release|x64
+		{12C68678-C715-4C30-B9DE-58B06D121F01}.Debug|x64.ActiveCfg = Debug|x64
+		{12C68678-C715-4C30-B9DE-58B06D121F01}.Release|x64.ActiveCfg = Release|x64
+		{12C68678-C715-4C30-B9DE-58B06D121F01}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
