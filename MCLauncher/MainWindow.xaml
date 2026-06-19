@@ -71,7 +71,7 @@
                 <Canvas Name="progressSizeHack" Grid.Row="2" Grid.Column="0" Height="12">
                     <ProgressBar Width="{Binding Path=ActualWidth, ElementName=progressSizeHack, Mode=OneWay}" Height="{Binding Path=ActualHeight, ElementName=progressSizeHack, Mode=OneWay}" Minimum="0" Maximum="{Binding StateChangeInfo.MaxProgress}" Value="{Binding StateChangeInfo.Progress}" IsIndeterminate="{Binding StateChangeInfo.IsProgressIndeterminate}" />
                 </Canvas>
-                <Button Grid.Row="2" Grid.Column="1" Content="X" Width="20" Margin="10 0 0 0" Command="{Binding StateChangeInfo.CancelCommand}" />
+                <Button Grid.Row="2" Grid.Column="1" Content="X" Width="20" Margin="10 0 0 0" Command="{Binding StateChangeInfo.CancelCommand}" IsEnabled="{Binding StateChangeInfo.HasCancelCommand}"/>
             </Grid>
         </DataTemplate>
         <ControlTemplate x:Key="templateVersionList" TargetType="ContentControl">

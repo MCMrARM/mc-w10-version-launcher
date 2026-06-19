@@ -1495,7 +1495,20 @@ namespace MCLauncher {
                 }
             }
 
-            public ICommand CancelCommand { get; set; }
+            private ICommand? _cancelCommand = null;
+
+            public ICommand? CancelCommand {
+                get => _cancelCommand;
+                set {
+                    _cancelCommand = value;
+                    OnPropertyChanged("CancelCommand");
+                    OnPropertyChanged("HasCancelCommand");
+                }
+            }
+
+            public bool HasCancelCommand {
+                get => CancelCommand != null;
+            }
 
         }
 
