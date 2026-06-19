@@ -16,7 +16,7 @@ namespace MCLauncher {
         private static XNamespace wuws = "http://schemas.microsoft.com/msus/2014/10/WindowsUpdateAuthorization";
         private static XNamespace wuclient = "http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService";
 
-        private string _msaUserToken;
+        private string? _msaUserToken;
 
         public void SetMSAUserToken(string token) {
             _msaUserToken = token;
@@ -84,7 +84,7 @@ namespace MCLauncher {
             XmlNamespaceManager nsmgr = new XmlNamespaceManager(new NameTable());
             nsmgr.AddNamespace("s", "http://www.w3.org/2003/05/soap-envelope");
             nsmgr.AddNamespace("wu", "http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService");
-            XElement result = doc.XPathSelectElement("/s:Envelope/s:Body/wu:GetExtendedUpdateInfo2Response/wu:GetExtendedUpdateInfo2Result", nsmgr);
+            XElement? result = doc.XPathSelectElement("/s:Envelope/s:Body/wu:GetExtendedUpdateInfo2Response/wu:GetExtendedUpdateInfo2Result", nsmgr);
             if (result == null)
                 return new string[0];
             return result.XPathSelectElements("wu:FileLocations/wu:FileLocation/wu:Url", nsmgr).Select(u => u.Value).ToArray();

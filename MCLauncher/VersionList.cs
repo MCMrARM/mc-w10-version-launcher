@@ -38,7 +38,7 @@ namespace MCLauncher {
             CollectionChanged += versionListOnCollectionChanged;
         }
 
-        private void versionListOnCollectionChanged(object sender, NotifyCollectionChangedEventArgs e) {
+        private void versionListOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) {
             if (e.OldItems != null) {
                 foreach (var item in e.OldItems) {
                     var version = item as WPFDataTypes.Version;

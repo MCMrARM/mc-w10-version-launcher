@@ -49,11 +49,15 @@ namespace MCLauncher {
         private volatile bool _hasGdkExtractTask = false;
 
         public MainWindow() {
+            Preferences? userPrefs = null;
             if (File.Exists(PREFS_PATH)) {
-                UserPrefs = JsonConvert.DeserializeObject<Preferences>(File.ReadAllText(PREFS_PATH));
-            } else {
+                userPrefs = JsonConvert.DeserializeObject<Preferences>(File.ReadAllText(PREFS_PATH));
+            }
+            if (userPrefs == null) {
                 UserPrefs = new Preferences();
                 RewritePrefs();
+            } else {
+                UserPrefs = userPrefs;
             }
 
             var versionsApiUWP = UserPrefs.VersionsApiUWP != "" ? UserPrefs.VersionsApiUWP : VERSIONS_API_UWP;
@@ -157,7 +161,7 @@ namespace MCLauncher {
             LoadingProgressGrid.Visibility = Visibility.Collapsed;
         }
 
-        private void VersionEntryPropertyChanged(object sender, PropertyChangedEventArgs e) {
+        private void VersionEntryPropertyChanged(object? sender, PropertyChangedEventArgs e) {
             RefreshLists();
         }
 
@@ -236,7 +240,7 @@ namespace MCLauncher {
             }
         }
 
-        private void InstallError(string userMessage, string debug, string fileName, Exception ex) {
+        private void InstallError(string userMessage, string debug, string fileName, Exception? ex) {
             string exceptionMessage = "none";
             if (ex != null) {
                 Trace.WriteLine(debug + ": " + ex.ToString());
@@ -615,7 +619,7 @@ namespace MCLauncher {
             });
         }
 
-        private async Task DeploymentProgressWrapper(IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> t, Version version) {
+        private async Task DeploymentProgressWrapper(IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> t, Version? version) {
             TaskCompletionSource<int> src = new TaskCompletionSource<int>();
             t.Progress += (v, p) => {
                 Trace.WriteLine("Deployment progress: " + p.state + " " + p.percentage + "%");
@@ -916,7 +920,7 @@ namespace MCLauncher {
             }
         }
 
-        private async Task RemovePackage(Package pkg, string packageFamily, Version version, bool skipBackup) {
+        private async Task RemovePackage(Package pkg, string packageFamily, Version? version, bool skipBackup) {
             Trace.WriteLine("Removing package: " + pkg.Id.FullName);
             if (!pkg.IsDevelopmentMode) {
                 if (!skipBackup) {
@@ -944,7 +948,7 @@ namespace MCLauncher {
             }
         }
 
-        private async Task UnregisterPackage(string packageFamily, Version version, bool skipBackup) {
+        private async Task UnregisterPackage(string packageFamily, Version? version, bool skipBackup) {
             foreach (var pkg in new PackageManager().FindPackages(packageFamily)) {
                 string location = GetPackagePath(pkg);
                 Trace.WriteLine("Removing package: " + pkg.Id.FullName + " " + location);
@@ -1253,7 +1257,7 @@ namespace MCLauncher {
             var dialog = new ProgressDialog();
             dialog.Owner = this;
             bool allowClose = false;
-            dialog.Closing += (object sender_, CancelEventArgs e_) => {
+            dialog.Closing += (object? sender_, CancelEventArgs e_) => {
                 if (!allowClose) {
                     e_.Cancel = true;
                 }
@@ -1296,7 +1300,7 @@ namespace MCLauncher {
 
         public class NotifyPropertyChangedBase : INotifyPropertyChanged {
 
-            public event PropertyChangedEventHandler PropertyChanged;
+            public event PropertyChangedEventHandler? PropertyChanged;
 
             protected void OnPropertyChanged(string name) {
                 if (PropertyChanged != null)
@@ -1331,7 +1335,7 @@ namespace MCLauncher {
         public class Version : NotifyPropertyChangedBase {
             public static readonly string UNKNOWN_UUID = "UNKNOWN";
 
-            public Version(string uuid, string name, VersionType versionType, bool isNew, ICommonVersionCommands commands, PackageType packageType, List<string> downloadUrls) {
+            public Version(string uuid, string name, VersionType versionType, bool isNew, ICommonVersionCommands commands, PackageType packageType, List<string>? downloadUrls) {
                 this.UUID = uuid;
                 this.Name = name;
                 this.VersionType = versionType;
@@ -1352,6 +1356,7 @@ namespace MCLauncher {
                 this.RemoveCommand = commands.RemoveCommand;
                 this.GameDirectory = directory;
                 this.PackageType = packageType;
+                this.DownloadURLs = new List<string>();
             }
 
             public string UUID { get; set; }
@@ -1408,9 +1413,9 @@ namespace MCLauncher {
             public ICommand DownloadCommand { get; set; }
             public ICommand RemoveCommand { get; set; }
 
-            private VersionStateChangeInfo _stateChangeInfo;
+            private VersionStateChangeInfo? _stateChangeInfo;
             private bool _isNew = false;
-            public VersionStateChangeInfo StateChangeInfo {
+            public VersionStateChangeInfo? StateChangeInfo {
                 get { return _stateChangeInfo; }
                 set { _stateChangeInfo = value; OnPropertyChanged("StateChangeInfo"); OnPropertyChanged("IsStateChanging"); }
             }

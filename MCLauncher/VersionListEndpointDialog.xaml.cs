@@ -19,7 +19,7 @@ namespace MCLauncher
     /// </summary>
     public partial class VersionListEndpointDialog : Window
     {
-        public event SetEndpointHandler OnEndpointChanged;
+        public event SetEndpointHandler? OnEndpointChanged;
 
         public delegate void SetEndpointHandler(object sender, string newUwpIdsEndpoint, string newGdkPackageUrlsEndpoint);
 
